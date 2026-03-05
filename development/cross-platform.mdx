@@ -1,0 +1,546 @@
+---
+title: Cross-Platform Development
+description: Guidelines for developing on Windows, macOS, and Linux with consistent workflows
+icon: laptop-code
+---
+
+## Platform Support
+
+Conversor de Unidades Remoto is designed to run seamlessly across all major platforms:
+
+<CardGroup cols={3}>
+  <Card title="Windows" icon="windows">
+    PowerShell, CMD, and Git Bash supported
+  </Card>
+  <Card title="macOS" icon="apple">
+    Native Terminal and zsh shell
+  </Card>
+  <Card title="Linux" icon="linux">
+    Bash and other Unix shells
+  </Card>
+</CardGroup>
+
+## Key Differences
+
+### Virtual Environment Activation
+
+The most significant difference between platforms is how you activate the Python virtual environment.
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    Uses forward slashes and `.sh` activation script:
+
+    ```bash
+    # Create virtual environment
+    python3 -m venv .venv
+
+    # Activate
+    source .venv/bin/activate
+
+    # Deactivate
+    deactivate
+    ```
+  </Tab>
+  <Tab title="Windows PowerShell">
+    Uses backslashes and `.ps1` activation script:
+
+    ```powershell
+    # Create virtual environment
+    py -m venv .venv
+
+    # Activate
+    .\.venv\Scripts\Activate.ps1
+
+    # Deactivate
+    deactivate
+    ```
+
+    <Note>
+    If you get an execution policy error, run:
+    ```powershell
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+    ```
+    </Note>
+  </Tab>
+  <Tab title="Windows CMD">
+    Uses backslashes and `.bat` activation script:
+
+    ```bat
+    rem Create virtual environment
+    py -m venv .venv
+
+    rem Activate
+    .venv\Scripts\activate.bat
+
+    rem Deactivate
+    deactivate
+    ```
+  </Tab>
+</Tabs>
+
+### Python Command
+
+Different platforms use different commands to invoke Python:
+
+| Platform | Command | Alternative |
+|----------|---------|-------------|
+| macOS/Linux | `python3` | `python` (if aliased) |
+| Windows | `py` | `python` (if in PATH) |
+
+<Tip>
+Use `python` (without the version) inside an activated virtual environment on all platforms.
+</Tip>
+
+### Path Separators
+
+<CodeGroup>
+```bash macOS/Linux
+# Forward slashes
+cd backend
+python3 server.py
+slice2py backend/Conversor.ice
+```
+
+```powershell Windows PowerShell
+# Backslashes or forward slashes (both work)
+cd backend
+python server.py
+slice2py backend/Conversor.ice
+```
+
+```bat Windows CMD
+# Backslashes required
+cd backend
+python server.py
+slice2py backend\Conversor.ice
+```
+</CodeGroup>
+
+<Note>
+PowerShell accepts both forward and backward slashes in most contexts, making it more flexible than CMD.
+</Note>
+
+## Environment Variables
+
+Setting environment variables differs significantly across platforms.
+
+### Temporary Variables (Current Session)
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ```bash
+    # Set and run in one command
+    HOST=0.0.0.0 PORT=8080 DEBUG=true python backend/web_server.py
+
+    # Or export for the session
+    export HOST=0.0.0.0
+    export PORT=8080
+    export DEBUG=true
+    python backend/web_server.py
+    ```
+  </Tab>
+  <Tab title="Windows PowerShell">
+    ```powershell
+    # Set variables
+    $env:HOST="0.0.0.0"
+    $env:PORT="8080"
+    $env:DEBUG="true"
+
+    # Run the server
+    python backend/web_server.py
+    ```
+  </Tab>
+  <Tab title="Windows CMD">
+    ```bat
+    rem Set variables
+    set HOST=0.0.0.0
+    set PORT=8080
+    set DEBUG=true
+
+    rem Run the server
+    python backend\web_server.py
+    ```
+  </Tab>
+</Tabs>
+
+### Persistent Variables
+
+<Accordion title="macOS/Linux - .bashrc or .zshrc">
+  Add to `~/.bashrc` (or `~/.zshrc` on macOS Catalina+):
+
+  ```bash
+  export HOST=0.0.0.0
+  export PORT=8080
+  export DEBUG=true
+  ```
+
+  Reload:
+  ```bash
+  source ~/.bashrc  # or ~/.zshrc
+  ```
+</Accordion>
+
+<Accordion title="Windows - System Environment Variables">
+  1. Open System Properties
+  2. Click "Environment Variables"
+  3. Add user or system variables
+
+  Or via PowerShell (admin required for system-wide):
+  ```powershell
+  [System.Environment]::SetEnvironmentVariable('HOST', '0.0.0.0', 'User')
+  ```
+</Accordion>
+
+## Automated Run Scripts
+
+The project includes platform-specific automation scripts that handle differences automatically.
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    **File:** `run.sh`
+
+    ```bash
+    #!/bin/bash
+    # Automated startup script for Unix systems
+    ```
+
+    **First time setup:**
+    ```bash
+    chmod +x run.sh
+    ```
+
+    **Run:**
+    ```bash
+    ./run.sh
+    ```
+
+    **Features:**
+    - Color-coded output using ANSI escape codes
+    - Background process management with PIDs
+    - SIGINT/SIGTERM trap for cleanup
+    - Interactive ngrok prompt
+  </Tab>
+  <Tab title="Windows">
+    **File:** `run.ps1`
+
+    ```powershell
+    # Automated startup script for Windows
+    ```
+
+    **Run:**
+    ```powershell
+    powershell -ExecutionPolicy Bypass -File run.ps1
+    ```
+
+    **Features:**
+    - Color-coded output using PowerShell colors
+    - Process management with `Start-Process`
+    - Process tracking with PIDs
+    - Interactive ngrok prompt
+  </Tab>
+</Tabs>
+
+<Note>
+Both scripts provide the same user experience with:
+1. ICE server startup on port 10000
+2. Flask server startup on port 5000
+3. Optional ngrok tunnel for remote access
+</Note>
+
+## Port Checking Commands
+
+Checking which processes are using specific ports:
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    **Check port usage:**
+    ```bash
+    lsof -i :10000
+    lsof -i :5000
+    ```
+
+    **Kill process by port:**
+    ```bash
+    # Find PID
+    lsof -ti :10000
+
+    # Kill it
+    kill -9 $(lsof -ti :10000)
+    ```
+
+    **Kill process by name:**
+    ```bash
+    pkill -f server.py
+    pkill -f web_server.py
+    ```
+  </Tab>
+  <Tab title="Windows PowerShell">
+    **Check port usage:**
+    ```powershell
+    netstat -ano | findstr :10000
+    netstat -ano | findstr :5000
+    ```
+
+    **Kill process by PID:**
+    ```powershell
+    # Get PID from netstat output, then:
+    taskkill /PID <PID> /F
+    ```
+
+    **Kill process by name:**
+    ```powershell
+    taskkill /IM python.exe /F
+    ```
+  </Tab>
+  <Tab title="Windows CMD">
+    **Check port usage:**
+    ```bat
+    netstat -ano | findstr :10000
+    netstat -ano | findstr :5000
+    ```
+
+    **Kill process by PID:**
+    ```bat
+    rem Get PID from netstat output, then:
+    taskkill /PID <PID> /F
+    ```
+  </Tab>
+</Tabs>
+
+## File Paths in Code
+
+When writing Python code, use `os.path.join()` or `pathlib` for cross-platform compatibility:
+
+```python
+import os
+from pathlib import Path
+
+# Good - works on all platforms
+path = os.path.join('backend', 'Conversor.ice')
+path = Path('backend') / 'Conversor.ice'
+
+# Bad - only works on Unix
+path = 'backend/Conversor.ice'
+
+# Bad - only works on Windows
+path = 'backend\\Conversor.ice'
+```
+
+<Tip>
+The project's current structure uses relative paths that work on both platforms because Python handles path conversion automatically in most cases.
+</Tip>
+
+## Development Workflow
+
+Recommended workflow that works identically across platforms:
+
+<Steps>
+  <Step title="Activate virtual environment">
+    <CodeGroup>
+    ```bash macOS/Linux
+    source .venv/bin/activate
+    ```
+    
+    ```powershell Windows PowerShell
+    .\.venv\Scripts\Activate.ps1
+    ```
+    
+    ```bat Windows CMD
+    .venv\Scripts\activate.bat
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Start ICE server">
+    ```bash
+    # Same on all platforms
+    cd backend
+    python server.py
+    ```
+  </Step>
+
+  <Step title="Start Flask server (new terminal)">
+    ```bash
+    # Same on all platforms (after activating venv)
+    cd backend
+    python web_server.py
+    ```
+  </Step>
+
+  <Step title="Access the application">
+    ```
+    http://localhost:5000
+    ```
+    Same URL on all platforms.
+  </Step>
+</Steps>
+
+## Testing Commands
+
+Test ICE connectivity directly:
+
+```bash
+# Same on all platforms
+python backend/client.py
+```
+
+Test API endpoints with curl:
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ```bash
+    # Status check
+    curl http://localhost:5000/api/status
+
+    # Conversion test
+    curl -X POST http://localhost:5000/api/convert \
+      -H "Content-Type: application/json" \
+      -d '{"categoria":"temperatura","valor":32,"desde":"fahrenheit","hasta":"celsius"}'
+    ```
+  </Tab>
+  <Tab title="Windows PowerShell">
+    ```powershell
+    # Status check
+    curl http://localhost:5000/api/status
+
+    # Conversion test
+    Invoke-RestMethod -Uri http://localhost:5000/api/convert `
+      -Method POST `
+      -ContentType "application/json" `
+      -Body '{"categoria":"temperatura","valor":32,"desde":"fahrenheit","hasta":"celsius"}'
+    ```
+  </Tab>
+</Tabs>
+
+## Package Installation
+
+### Python Package Manager
+
+```bash
+# Works on all platforms (inside activated venv)
+pip install -r requirements.txt
+pip install Flask
+pip install zeroc-ice
+```
+
+### System Package Managers
+
+<Tabs>
+  <Tab title="macOS - Homebrew">
+    ```bash
+    brew install python@3.11
+    brew install ngrok
+    ```
+  </Tab>
+  <Tab title="Windows - winget">
+    ```powershell
+    winget install Python.Python.3.11
+    winget install ngrok.ngrok
+    ```
+  </Tab>
+  <Tab title="Windows - Chocolatey">
+    ```powershell
+    choco install python311
+    choco install ngrok
+    ```
+  </Tab>
+  <Tab title="Linux - apt (Debian/Ubuntu)">
+    ```bash
+    sudo apt update
+    sudo apt install python3.11 python3.11-venv
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Virtual Environments" icon="box">
+    Always develop inside a virtual environment to isolate dependencies across all platforms
+  </Card>
+  <Card title="Path Handling" icon="folder">
+    Use `pathlib` or `os.path` in Python code for automatic path separator handling
+  </Card>
+  <Card title="Test on Target Platforms" icon="vial">
+    If possible, test your changes on Windows, macOS, and Linux before committing
+  </Card>
+  <Card title="Document Platform-Specific Steps" icon="book">
+    When adding features, document any platform-specific setup or commands
+  </Card>
+</CardGroup>
+
+## Git Considerations
+
+### Line Endings
+
+Configure Git to handle line endings correctly:
+
+```bash
+# Recommended .gitattributes
+* text=auto
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.py text eol=lf
+```
+
+<Warning>
+Always use LF (`\n`) for Python files, even on Windows. Windows Python handles LF correctly.
+</Warning>
+
+### Execute Permissions
+
+Bash scripts need execute permissions on Unix systems:
+
+```bash
+chmod +x run.sh
+```
+
+Git tracks these permissions. Windows users don't need to worry about this.
+
+## Common Pitfalls
+
+<Accordion title="Mixed path separators in strings">
+  **Problem:** Hardcoded paths with `/` or `\\` in strings.
+
+  **Solution:** Use `os.path.join()` or `Path`:
+  ```python
+  from pathlib import Path
+  ice_file = Path("backend") / "Conversor.ice"
+  ```
+</Accordion>
+
+<Accordion title="Assuming bash commands exist">
+  **Problem:** Using Unix commands like `lsof`, `kill`, `grep` in automation scripts.
+
+  **Solution:** Provide separate scripts for Windows (`.ps1`) and Unix (`.sh`), or use Python for automation.
+</Accordion>
+
+<Accordion title="Hardcoded localhost">
+  **Problem:** Not all systems resolve `localhost` the same way.
+
+  **Solution:** Make the host configurable via environment variables:
+  ```python
+  host = os.getenv('HOST', 'localhost')
+  ```
+</Accordion>
+
+<Accordion title="Assuming Python 3 is 'python'">
+  **Problem:** Some systems use `python` for Python 2, `python3` for Python 3.
+
+  **Solution:** Inside a venv, use `python` (no version). Outside venv, use `python3` (Unix) or `py` (Windows).
+</Accordion>
+
+## Summary Table
+
+| Task | macOS/Linux | Windows PowerShell | Windows CMD |
+|------|-------------|--------------------|--------------|
+| Create venv | `python3 -m venv .venv` | `py -m venv .venv` | `py -m venv .venv` |
+| Activate venv | `source .venv/bin/activate` | `.\.venv\Scripts\Activate.ps1` | `.venv\Scripts\activate.bat` |
+| Run server | `python3 server.py` | `python server.py` | `python server.py` |
+| Check port | `lsof -i :10000` | `netstat -ano \| findstr :10000` | `netstat -ano \| findstr :10000` |
+| Set env var | `export VAR=value` | `$env:VAR="value"` | `set VAR=value` |
+| Run script | `./run.sh` | `powershell -ExecutionPolicy Bypass -File run.ps1` | N/A |
+
+<Tip>
+Bookmark this page for quick reference when switching between development machines!
+</Tip>

@@ -1,0 +1,192 @@
+---
+title: 'Interface Definition'
+description: 'ZeroC ICE Slice interface definition for the remote unit converter'
+icon: 'code'
+---
+
+## Overview
+
+The Conversor interface is defined using ZeroC ICE's Slice language. Slice (Specification Language for ICE) is an interface definition language (IDL) that allows you to define language-agnostic interfaces for distributed applications.
+
+## Conversor.ice File
+
+The complete interface definition is located in `backend/Conversor.ice`:
+
+```ice backend/Conversor.ice
+module Conversor
+{
+    exception UnidadInvalidaException
+    {
+        string mensaje;
+    };
+
+    interface ConversorUnidades
+    {
+        double convertirTemperatura(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        double convertirLongitud(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        double convertirPeso(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        double convertirVelocidad(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        string unidadesDisponibles(string categoria)
+            throws UnidadInvalidaException;
+    };
+};
+```
+
+## Module and Exception
+
+<ParamField path="Conversor" type="module">
+  The main module that encapsulates all interface definitions and exceptions.
+</ParamField>
+
+<ParamField path="UnidadInvalidaException" type="exception">
+  Custom exception thrown when invalid units or categories are provided.
+  
+  **Fields:**
+  - `mensaje` (string): Descriptive error message explaining what went wrong
+</ParamField>
+
+<Note>
+  ICE exceptions are type-safe and can be caught specifically on the client side, allowing for proper error handling in distributed systems.
+</Note>
+
+## Interface Methods
+
+The `ConversorUnidades` interface defines five remote methods:
+
+### convertirTemperatura
+
+```ice
+double convertirTemperatura(double valor, string desde, string hasta)
+    throws UnidadInvalidaException;
+```
+
+<ParamField path="valor" type="double" required>
+  The temperature value to convert
+</ParamField>
+
+<ParamField path="desde" type="string" required>
+  Source unit: `celsius`, `fahrenheit`, or `kelvin`
+</ParamField>
+
+<ParamField path="hasta" type="string" required>
+  Target unit: `celsius`, `fahrenheit`, or `kelvin`
+</ParamField>
+
+**Returns:** Converted temperature value as a `double`
+
+### convertirLongitud
+
+```ice
+double convertirLongitud(double valor, string desde, string hasta)
+    throws UnidadInvalidaException;
+```
+
+<ParamField path="valor" type="double" required>
+  The length/distance value to convert
+</ParamField>
+
+<ParamField path="desde" type="string" required>
+  Source unit: `m` (meters), `km` (kilometers), `mi` (miles), or `ft` (feet)
+</ParamField>
+
+<ParamField path="hasta" type="string" required>
+  Target unit: `m`, `km`, `mi`, or `ft`
+</ParamField>
+
+**Returns:** Converted length value as a `double`
+
+### convertirPeso
+
+```ice
+double convertirPeso(double valor, string desde, string hasta)
+    throws UnidadInvalidaException;
+```
+
+<ParamField path="valor" type="double" required>
+  The weight/mass value to convert
+</ParamField>
+
+<ParamField path="desde" type="string" required>
+  Source unit: `kg` (kilograms), `lb` (pounds), or `g` (grams)
+</ParamField>
+
+<ParamField path="hasta" type="string" required>
+  Target unit: `kg`, `lb`, or `g`
+</ParamField>
+
+**Returns:** Converted weight value as a `double`
+
+### convertirVelocidad
+
+```ice
+double convertirVelocidad(double valor, string desde, string hasta)
+    throws UnidadInvalidaException;
+```
+
+<ParamField path="valor" type="double" required>
+  The velocity/speed value to convert
+</ParamField>
+
+<ParamField path="desde" type="string" required>
+  Source unit: `kmh` (km/hour), `mph` (miles/hour), or `ms` (meters/second)
+</ParamField>
+
+<ParamField path="hasta" type="string" required>
+  Target unit: `kmh`, `mph`, or `ms`
+</ParamField>
+
+**Returns:** Converted velocity value as a `double`
+
+### unidadesDisponibles
+
+```ice
+string unidadesDisponibles(string categoria)
+    throws UnidadInvalidaException;
+```
+
+<ParamField path="categoria" type="string" required>
+  The category name: `temperatura`, `longitud`, `peso`, or `velocidad`
+</ParamField>
+
+**Returns:** Comma-separated string of available units for the category
+
+<Tip>
+  This method is useful for building dynamic UIs that show users which units are available for conversion.
+</Tip>
+
+## Code Generation
+
+Once the Slice file is defined, use the `slice2py` compiler to generate Python stubs:
+
+```bash
+slice2py Conversor.ice
+```
+
+This generates the `Conversor` module with:
+- Interface proxies for client-side calls
+- Servant base classes for server-side implementation
+- Exception classes
+- Marshaling/unmarshaling code
+
+<Warning>
+  The generated code should not be manually edited. Always modify the `.ice` file and regenerate the stubs.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Server Implementation" icon="server" href="/ice/server-implementation">
+    Learn how to implement the servant class
+  </Card>
+  <Card title="Client Usage" icon="laptop-code" href="/ice/client-usage">
+    See how to connect and make remote calls
+  </Card>
+</CardGroup>

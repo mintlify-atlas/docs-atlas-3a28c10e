@@ -1,80 +1,371 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get the Conversor de Unidades running in minutes and perform your first unit conversion
 ---
 
-## Get started in three steps
+Get your unit converter up and running in under 5 minutes. This guide will have you converting temperatures, lengths, weights, and velocities through a modern web interface powered by ZeroC Ice RPC.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+- **Python 3.10 or 3.11** (recommended for best compatibility)
+- **pip** package manager
+- Terminal access (macOS/Linux) or PowerShell (Windows)
 
-### Step 2: Deploy your changes
+## Quick Start
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+The fastest way to get started is using the automated run scripts included in the project.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<Steps>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+<Step title="Create and activate virtual environment">
 
-### Step 3: Go live
+<CodeGroup>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```bash macOS/Linux
+cd /path/to/Conversor_Unidades_Remoto-1
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-## Next steps
+```powershell Windows (PowerShell)
+cd C:\path\to\Conversor_Unidades_Remoto-1
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
 
-Now that you have your docs running, explore these key features:
+```bat Windows (CMD)
+cd C:\path\to\Conversor_Unidades_Remoto-1
+py -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+</CodeGroup>
+
+<Note>
+If PowerShell blocks script execution, run:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+</Note>
+
+</Step>
+
+<Step title="Install dependencies">
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+This installs:
+- `Flask>=3.0,<4.0` - Web server framework
+- `zeroc-ice>=3.7,<3.8` - ZeroC Ice RPC middleware
+
+</Step>
+
+<Step title="Make run script executable (macOS/Linux only)">
+
+```bash
+chmod +x run.sh
+```
+
+</Step>
+
+<Step title="Start the application">
+
+<CodeGroup>
+
+```bash macOS/Linux
+./run.sh
+```
+
+```powershell Windows
+powershell -ExecutionPolicy Bypass -File run.ps1
+```
+
+</CodeGroup>
+
+You'll see:
+
+```
+🚀 Iniciando Conversor de Unidades...
+
+[1/3] Levantando ICE Server en puerto 10000
+ICE PID: 12345
+[2/3] Levantando Flask Server en puerto 5000
+Flask PID: 12346
+[3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)
+```
+
+Type `n` and press Enter to continue without ngrok.
+
+```
+✅ Servidores activos:
+   - ICE Server: http://localhost:10000
+   - Web App: http://localhost:5000
+Presiona Ctrl+C para detener
+```
+
+</Step>
+
+<Step title="Open the web interface">
+
+Navigate to [http://localhost:5000](http://localhost:5000) in your browser.
+
+</Step>
+
+</Steps>
+
+## Your First Conversion
+
+Let's convert 100°C to Fahrenheit:
+
+<Steps>
+
+<Step title="Select category">
+Click the **Temp** tab (active by default).
+</Step>
+
+<Step title="Enter value">
+Type `100` in the **Valor** field.
+</Step>
+
+<Step title="Select units">
+- **De**: Select `°C` (celsius)
+- **Hacia**: Select `°F` (fahrenheit)
+</Step>
+
+<Step title="Convert">
+Click **Convertir** or simply press Enter. The result `212` appears instantly.
+</Step>
+
+</Steps>
+
+<Tip>
+**Real-time conversion**: The app converts automatically as you type or change units. No need to click the button every time!
+</Tip>
+
+## Available Conversion Categories
 
 <CardGroup cols={2}>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
+<Card title="Temperature" icon="thermometer">
+**Units**: Celsius (°C), Fahrenheit (°F), Kelvin (K)
+
+**Example**: 0°C → 32°F
 </Card>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
+<Card title="Length" icon="ruler">
+**Units**: Meters (m), Kilometers (km), Miles (mi), Feet (ft)
+
+**Example**: 1 mi → 1.609 km
 </Card>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
+<Card title="Weight" icon="weight-scale">
+**Units**: Kilograms (kg), Pounds (lb), Grams (g)
+
+**Example**: 70 kg → 154.324 lb
 </Card>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
+<Card title="Velocity" icon="gauge">
+**Units**: km/h (kmh), mph (mph), m/s (ms)
+
+**Example**: 120 kmh → 74.565 mph
 </Card>
 
 </CardGroup>
 
+## Testing the API Directly
+
+The Flask server exposes REST endpoints you can test with curl:
+
+### Convert Units
+
+```bash
+curl -X POST http://localhost:5000/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "categoria": "temperatura",
+    "valor": 32,
+    "desde": "fahrenheit",
+    "hasta": "celsius"
+  }'
+```
+
+**Response**:
+```json
+{
+  "resultado": 0.0
+}
+```
+
+### Get Available Units
+
+```bash
+curl http://localhost:5000/api/unidades/temperatura
+```
+
+**Response**:
+```json
+{
+  "unidades": "celsius, fahrenheit, kelvin"
+}
+```
+
+### Check Server Status
+
+```bash
+curl http://localhost:5000/api/status
+```
+
+**Response**:
+```json
+{
+  "connected": true,
+  "servidor": "localhost:10000"
+}
+```
+
+## Using the Terminal Client
+
+Test the ICE server directly without the web interface:
+
+```bash
+python backend/client.py
+```
+
+**Output**:
+```
+=== TEMPERATURA ===
+100 celsius -> fahrenheit: 212.0000
+0 celsius -> kelvin: 273.1500
+98.6 fahrenheit -> celsius: 37.0000
+
+=== LONGITUD ===
+1 mi -> km: 1.6093
+100 ft -> m: 30.4800
+5 km -> m: 5000.0000
+
+=== PESO ===
+70 kg -> lb: 154.3236
+1 lb -> g: 453.5920
+
+=== VELOCIDAD ===
+120 kmh -> mph: 74.5645
+60 mph -> ms: 26.8224
+
+=== UNIDADES DISPONIBLES ===
+temperatura: celsius, fahrenheit, kelvin
+longitud: m, km, mi, ft
+peso: kg, lb, g
+velocidad: kmh, mph, ms
+```
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+The client directly invokes the ICE server methods defined in `backend/Conversor.ice` and implemented in `backend/server.py:27-129`.
 </Note>
+
+## Features to Explore
+
+### Swap Units
+Click the swap button (<i className="bi bi-arrow-left-right"></i>) to instantly exchange source and destination units.
+
+### Conversion History
+Your last 5 conversions appear in the **Recientes** section. Click any history item to reload that conversion.
+
+### Theme Switching
+Choose between **Auto**, **Dark**, and **Light** themes in the top-right selector.
+
+### Remote Access (Optional)
+
+If you answered `s` when running the script, ngrok creates a public URL:
+
+```
+Forwarding https://abc-123-def.ngrok-free.app -> http://localhost:5000
+```
+
+Share this URL to let others use your converter remotely.
+
+## Stopping the Application
+
+Press `Ctrl+C` in the terminal where you ran the script. The cleanup handler automatically stops both servers:
+
+```
+⏹️  Deteniendo servidores...
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="Port 10000 or 5000 already in use">
+Check what's using the ports:
+
+<CodeGroup>
+
+```bash macOS/Linux
+lsof -i :10000
+lsof -i :5000
+```
+
+```powershell Windows
+netstat -ano | findstr :10000
+netstat -ano | findstr :5000
+```
+
+</CodeGroup>
+
+Kill the process or change ports using environment variables (see Installation guide).
+</Accordion>
+
+<Accordion title="Web interface shows 'Error (sin conexión)'">
+The Flask server can't reach the ICE server. Verify:
+
+1. ICE server is running: `ps aux | grep server.py`
+2. Port 10000 is listening
+3. Both servers started successfully
+
+Restart using the run script.
+</Accordion>
+
+<Accordion title="zeroc-ice installation fails">
+Ensure you're using Python 3.10 or 3.11:
+
+```bash
+python3 --version
+```
+
+Create a fresh virtual environment and try again.
+</Accordion>
+
+<Accordion title="Frontend changes don't appear">
+Hard refresh your browser:
+- **Windows**: `Ctrl+F5`
+- **macOS**: `Cmd+Shift+R`
+</Accordion>
+
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Installation" icon="download" href="/installation">
+Detailed setup guide with manual control and configuration options
+</Card>
+
+<Card title="Architecture" icon="sitemap" href="/architecture/overview">
+Learn how ZeroC Ice RPC connects the backend and frontend
+</Card>
+
+<Card title="API Reference" icon="code" href="/api/overview">
+Complete endpoint documentation with examples
+</Card>
+
+<Card title="Development" icon="wrench" href="/development/troubleshooting">
+Modify the ICE interface and regenerate stubs
+</Card>
+
+</CardGroup>

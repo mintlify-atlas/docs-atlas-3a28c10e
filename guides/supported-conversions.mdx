@@ -1,0 +1,314 @@
+---
+title: Supported Conversions
+description: Complete reference of all conversion categories, units, and formulas
+icon: "arrows-rotate"
+---
+
+The Unit Converter supports four categories of conversions with precise mathematical formulas implemented in the backend server.
+
+## Temperature Conversions
+
+Convert between three temperature scales commonly used in science and daily life.
+
+### Supported Units
+
+<CardGroup cols={3}>
+  <Card title="Celsius (°C)" icon="temperature-half">
+    Metric standard, water freezes at 0°C
+  </Card>
+  <Card title="Fahrenheit (°F)" icon="temperature-three-quarters">
+    US customary, water freezes at 32°F
+  </Card>
+  <Card title="Kelvin (K)" icon="temperature-full">
+    Absolute scale, zero is absolute zero
+  </Card>
+</CardGroup>
+
+### Conversion Formulas
+
+The backend uses a **base conversion strategy** where all temperatures are first converted to Celsius, then to the target unit:
+
+<Tabs>
+  <Tab title="To Celsius">
+    **From Fahrenheit:**
+    ```python
+    celsius = (fahrenheit - 32) * 5 / 9
+    ```
+
+    **From Kelvin:**
+    ```python
+    celsius = kelvin - 273.15
+    ```
+
+    <Note>From server.py:34-39</Note>
+  </Tab>
+
+  <Tab title="From Celsius">
+    **To Fahrenheit:**
+    ```python
+    fahrenheit = celsius * 9 / 5 + 32
+    ```
+
+    **To Kelvin:**
+    ```python
+    kelvin = celsius + 273.15
+    ```
+
+    <Note>From server.py:41-45</Note>
+  </Tab>
+</Tabs>
+
+### Examples
+
+| Input | Output | Use Case |
+|-------|--------|----------|
+| 0°C | 32°F | Freezing point of water |
+| 100°C | 212°F | Boiling point of water |
+| 37°C | 98.6°F | Human body temperature |
+| -40°C | -40°F | Temperature scales intersect |
+| 0 K | -273.15°C | Absolute zero |
+
+---
+
+## Length Conversions
+
+Convert between metric and imperial length measurements.
+
+### Supported Units
+
+<CardGroup cols={2}>
+  <Card title="m (Meters)" icon="ruler">
+    Base SI unit for length
+  </Card>
+  <Card title="km (Kilometers)" icon="road">
+    1 km = 1000 meters
+  </Card>
+  <Card title="mi (Miles)" icon="signs-post">
+    US/UK imperial mile
+  </Card>
+  <Card title="ft (Feet)" icon="ruler-vertical">
+    US customary unit
+  </Card>
+</CardGroup>
+
+### Conversion Formulas
+
+All lengths are converted to **meters as the base unit**, then to the target:
+
+```python
+# Conversion factors to meters
+a_metros = {
+    "m": 1.0,
+    "km": 1000.0,
+    "mi": 1609.344,
+    "ft": 0.3048
+}
+
+# Two-step conversion: source → meters → target
+result = valor * a_metros[desde] / a_metros[hasta]
+```
+
+<Note>From server.py:58-61</Note>
+
+### Precise Conversion Factors
+
+| Unit | Meters Equivalent |
+|------|------------------|
+| 1 meter (m) | 1.0 m |
+| 1 kilometer (km) | 1,000 m |
+| 1 mile (mi) | 1,609.344 m |
+| 1 foot (ft) | 0.3048 m |
+
+### Examples
+
+| Input | Output | Use Case |
+|-------|--------|----------|
+| 1 km | 0.621371 mi | Distance conversion |
+| 1 mi | 5,280 ft | Mile to feet |
+| 100 m | 328.084 ft | Track and field |
+| 1 ft | 0.3048 m | Construction measurements |
+
+---
+
+## Weight Conversions
+
+Convert between metric and imperial weight/mass measurements.
+
+### Supported Units
+
+<CardGroup cols={3}>
+  <Card title="kg (Kilograms)" icon="weight-hanging">
+    Base SI unit for mass
+  </Card>
+  <Card title="lb (Pounds)" icon="scale-balanced">
+    US customary weight unit
+  </Card>
+  <Card title="g (Grams)" icon="weight-scale">
+    1 g = 0.001 kg
+  </Card>
+</CardGroup>
+
+### Conversion Formulas
+
+All weights are converted to **kilograms as the base unit**, then to the target:
+
+```python
+# Conversion factors to kilograms
+a_kg = {
+    "kg": 1.0,
+    "lb": 0.453592,
+    "g": 0.001
+}
+
+# Two-step conversion: source → kg → target
+result = valor * a_kg[desde] / a_kg[hasta]
+```
+
+<Note>From server.py:74-77</Note>
+
+### Precise Conversion Factors
+
+| Unit | Kilograms Equivalent |
+|------|---------------------|
+| 1 kilogram (kg) | 1.0 kg |
+| 1 pound (lb) | 0.453592 kg |
+| 1 gram (g) | 0.001 kg |
+
+### Examples
+
+| Input | Output | Use Case |
+|-------|--------|----------|
+| 1 kg | 2.20462 lb | Weight conversion |
+| 1 lb | 453.592 g | Cooking measurements |
+| 1000 g | 1 kg | Metric system |
+| 150 lb | 68.0389 kg | Body weight |
+
+---
+
+## Velocity Conversions
+
+Convert between different speed measurement systems.
+
+### Supported Units
+
+<CardGroup cols={3}>
+  <Card title="km/h" icon="gauge-high">
+    Kilometers per hour (metric)
+  </Card>
+  <Card title="mph" icon="car">
+    Miles per hour (imperial)
+  </Card>
+  <Card title="m/s" icon="timer">
+    Meters per second (SI base)
+  </Card>
+</CardGroup>
+
+### Conversion Formulas
+
+All velocities are converted to **meters per second (m/s) as the base unit**, then to the target:
+
+```python
+# Conversion factors to meters per second
+a_ms = {
+    "ms": 1.0,
+    "kmh": 1/3.6,      # 1 km/h = 0.277778 m/s
+    "mph": 0.44704
+}
+
+# Two-step conversion: source → m/s → target
+result = valor * a_ms[desde] / a_ms[hasta]
+```
+
+<Note>From server.py:90-93</Note>
+
+### Precise Conversion Factors
+
+| Unit | Meters/Second Equivalent |
+|------|-------------------------|
+| 1 m/s | 1.0 m/s |
+| 1 km/h | 0.277778 m/s (1/3.6) |
+| 1 mph | 0.44704 m/s |
+
+### Examples
+
+| Input | Output | Use Case |
+|-------|--------|----------|
+| 100 km/h | 62.1371 mph | Highway speed limits |
+| 60 mph | 96.5606 km/h | Speed limit conversion |
+| 10 m/s | 36 km/h | Physics problems |
+| 100 km/h | 27.7778 m/s | Scientific calculations |
+
+---
+
+## Implementation Details
+
+### Backend Architecture
+
+All conversions are performed by the ICE backend server (`server.py`) which implements the `ConversorUnidades` interface:
+
+```python
+class ConversorUnidadesImpl(Conversor.ConversorUnidades):
+    def convertirTemperatura(self, valor, desde, hasta, current=None):
+        # Temperature conversion logic
+    
+    def convertirLongitud(self, valor, desde, hasta, current=None):
+        # Length conversion logic
+    
+    def convertirPeso(self, valor, desde, hasta, current=None):
+        # Weight conversion logic
+    
+    def convertirVelocidad(self, valor, desde, hasta, current=None):
+        # Velocity conversion logic
+```
+
+<Note>From server.py:14-93</Note>
+
+### Unit Validation
+
+The server validates all units before performing conversions:
+
+```python
+def _validar(self, desde, hasta, validas, categoria):
+    errores = []
+    if desde not in validas:
+        errores.append(f"Unidad origen '{desde}' no valida para {categoria}.")
+    if hasta not in validas:
+        errores.append(f"Unidad destino '{hasta}' no valida para {categoria}.")
+    if errores:
+        ex = Conversor.UnidadInvalidaException()
+        ex.mensaje = " ".join(errores) + f" Validas: {', '.join(sorted(validas))}"
+        raise ex
+```
+
+<Note>From server.py:114-128</Note>
+
+### Precision and Rounding
+
+<Warning>
+The backend performs calculations using Python's native `float` type with full precision. The frontend rounds results to **6 decimal places** for display purposes (app.js:129).
+</Warning>
+
+```javascript
+const formatted = parseFloat(res.toFixed(6)).toString();
+```
+
+## Available Units Query
+
+The server provides a method to query available units for any category:
+
+```python
+def unidadesDisponibles(self, categoria, current=None):
+    catalogo = {
+        "temperatura": "celsius, fahrenheit, kelvin",
+        "longitud":    "m, km, mi, ft",
+        "peso":        "kg, lb, g",
+        "velocidad":   "kmh, mph, ms",
+    }
+    return catalogo[categoria.lower()]
+```
+
+<Note>From server.py:95-112</Note>
+
+<Tip>
+All unit names are case-insensitive. The server converts them to lowercase before processing.
+</Tip>

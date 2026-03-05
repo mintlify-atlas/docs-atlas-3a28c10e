@@ -1,0 +1,452 @@
+---
+title: Troubleshooting Guide
+description: Solutions to common issues when running the Conversor de Unidades Remoto application
+icon: wrench
+---
+
+## Connection Issues
+
+### ICE Server Connection Failed
+
+The most common issue is when the Flask web server cannot connect to the ICE server.
+
+<Warning>
+The web server depends on the ICE server running on port 10000. Always start the ICE server first.
+</Warning>
+
+<Steps>
+  <Step title="Verify ICE server is running">
+    Check if `server.py` is running:
+
+    <Tabs>
+      <Tab title="macOS/Linux">
+        ```bash
+        lsof -i :10000
+        ```
+
+        Expected output:
+        ```
+        COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+        python3 12345 user    4u  IPv4 0x1234      0t0  TCP *:10000 (LISTEN)
+        ```
+      </Tab>
+      <Tab title="Windows PowerShell">
+        ```powershell
+        netstat -ano | findstr :10000
+        ```
+
+        Expected output:
+        ```
+        TCP    0.0.0.0:10000          0.0.0.0:0              LISTENING       12345
+        ```
+      </Tab>
+    </Tabs>
+
+    If nothing is returned, the ICE server is not running.
+  </Step>
+
+  <Step title="Start the ICE server">
+    In a dedicated terminal:
+
+    ```bash
+    cd backend
+    python3 server.py
+    ```
+
+    You should see:
+    ```
+    Servidor ICE iniciado en puerto 10000
+    Presiona Ctrl+C para detener
+    ```
+  </Step>
+
+  <Step title="Check for port conflicts">
+    If port 10000 is already in use by another process, you'll need to either:
+
+    - Stop the conflicting process
+    - Modify the port in both `server.py` and `web_server.py`
+  </Step>
+</Steps>
+
+### Web Server Port Conflict (5000)
+
+Flask's default port 5000 may be occupied by other services.
+
+<Accordion title="Check what's using port 5000">
+  <Tabs>
+    <Tab title="macOS/Linux">
+      ```bash
+      lsof -i :5000
+      ```
+
+      To kill the process:
+      ```bash
+      kill -9 <PID>
+      ```
+    </Tab>
+    <Tab title="Windows PowerShell">
+      ```powershell
+      netstat -ano | findstr :5000
+      ```
+
+      To kill the process:
+      ```powershell
+      taskkill /PID <PID> /F
+      ```
+    </Tab>
+  </Tabs>
+</Accordion>
+
+<Accordion title="Use a different port">
+  You can run Flask on a different port using environment variables:
+
+  <Tabs>
+    <Tab title="macOS/Linux">
+      ```bash
+      HOST=0.0.0.0 PORT=8080 DEBUG=true python backend/web_server.py
+      ```
+    </Tab>
+    <Tab title="Windows PowerShell">
+      ```powershell
+      $env:HOST="0.0.0.0"
+      $env:PORT="8080"
+      $env:DEBUG="true"
+      python backend/web_server.py
+      ```
+    </Tab>
+    <Tab title="Windows CMD">
+      ```bat
+      set HOST=0.0.0.0
+      set PORT=8080
+      set DEBUG=true
+      python backend\web_server.py
+      ```
+    </Tab>
+  </Tabs>
+
+  Then access the app at: `http://localhost:8080`
+</Accordion>
+
+## Dependency Issues
+
+### zeroc-ice Installation Failure
+
+The `zeroc-ice` package can be tricky to install depending on your Python version and system.
+
+<Warning>
+**Recommended Python versions:** 3.10 or 3.11
+
+Python 3.12+ may have compatibility issues with zeroc-ice 3.7.x.
+</Warning>
+
+<Steps>
+  <Step title="Upgrade pip">
+    Always ensure pip is up-to-date before installing:
+
+    ```bash
+    python -m pip install --upgrade pip
+    ```
+  </Step>
+
+  <Step title="Use Python 3.10 or 3.11">
+    Check your Python version:
+
+    ```bash
+    python3 --version
+    ```
+
+    If you're using an incompatible version, install Python 3.10 or 3.11 and create a new virtual environment with it:
+
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        # Install Python 3.11 via Homebrew
+        brew install python@3.11
+
+        # Create venv with specific version
+        python3.11 -m venv .venv
+        source .venv/bin/activate
+        ```
+      </Tab>
+      <Tab title="Windows">
+        Download Python 3.11 from [python.org](https://www.python.org/downloads/)
+
+        ```powershell
+        # Create venv with specific version
+        py -3.11 -m venv .venv
+        .\.venv\Scripts\Activate.ps1
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Reinstall in clean environment">
+    If issues persist, create a fresh virtual environment:
+
+    ```bash
+    # Remove old environment
+    rm -rf .venv
+
+    # Create new one
+    python3 -m venv .venv
+    source .venv/bin/activate  # or .venv\Scripts\Activate.ps1 on Windows
+
+    # Install dependencies
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
+  </Step>
+</Steps>
+
+### Flask Installation Issues
+
+The project requires Flask 3.0+:
+
+```bash
+pip install "Flask>=3.0,<4.0"
+```
+
+If you encounter issues, verify your installation:
+
+```bash
+pip list | grep Flask
+```
+
+## Frontend Issues
+
+### Changes Not Appearing in Browser
+
+Browser caching can prevent you from seeing frontend updates.
+
+<Accordion title="Hard reload the page">
+  Force the browser to fetch fresh assets:
+
+  <Tabs>
+    <Tab title="Windows">
+      Press `Ctrl+F5` or `Ctrl+Shift+R`
+    </Tab>
+    <Tab title="macOS">
+      Press `Cmd+Shift+R`
+    </Tab>
+    <Tab title="Linux">
+      Press `Ctrl+F5` or `Ctrl+Shift+R`
+    </Tab>
+  </Tabs>
+</Accordion>
+
+<Accordion title="Clear browser cache">
+  If hard reload doesn't work:
+
+  1. Open browser DevTools (F12)
+  2. Right-click the refresh button
+  3. Select "Empty Cache and Hard Reload"
+</Accordion>
+
+<Accordion title="Disable Flask caching">
+  Make sure Flask is running in debug mode:
+
+  ```python
+  # In web_server.py, ensure:
+  app.run(host='localhost', port=5000, debug=True)
+  ```
+</Accordion>
+
+### API Endpoint Not Found (404)
+
+If API calls return 404 errors:
+
+<Steps>
+  <Step title="Verify Flask server is running">
+    Check the terminal running `web_server.py` for error messages.
+  </Step>
+
+  <Step title="Check the endpoint URL">
+    The available endpoints are:
+    - `POST /api/convert`
+    - `GET /api/unidades/<categoria>`
+    - `GET /api/status`
+
+    Ensure you're using the correct HTTP method and path.
+  </Step>
+
+  <Step title="Test with curl">
+    Verify endpoints work independently:
+
+    ```bash
+    # Test status
+    curl http://localhost:5000/api/status
+
+    # Test conversion
+    curl -X POST http://localhost:5000/api/convert \
+      -H "Content-Type: application/json" \
+      -d '{"categoria":"temperatura","valor":32,"desde":"fahrenheit","hasta":"celsius"}'
+    ```
+  </Step>
+</Steps>
+
+## Virtual Environment Issues
+
+### PowerShell Script Execution Blocked (Windows)
+
+Windows PowerShell may block the activation script by default.
+
+<Warning>
+If you see: `cannot be loaded because running scripts is disabled on this system`
+</Warning>
+
+**Solution:**
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+This temporarily allows script execution for the current PowerShell session.
+
+<Note>
+This setting only affects the current PowerShell window and resets when you close it.
+</Note>
+
+### Wrong Python Version in venv
+
+If your virtual environment uses the wrong Python version:
+
+<Steps>
+  <Step title="Delete the existing venv">
+    ```bash
+    rm -rf .venv
+    ```
+  </Step>
+
+  <Step title="Create venv with specific version">
+    <Tabs>
+      <Tab title="macOS/Linux">
+        ```bash
+        python3.11 -m venv .venv
+        source .venv/bin/activate
+        ```
+      </Tab>
+      <Tab title="Windows">
+        ```powershell
+        py -3.11 -m venv .venv
+        .\.venv\Scripts\Activate.ps1
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Reinstall dependencies">
+    ```bash
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
+  </Step>
+</Steps>
+
+## ngrok Issues
+
+### ngrok Command Not Found
+
+If ngrok is not installed:
+
+<Tabs>
+  <Tab title="macOS">
+    ```bash
+    brew install ngrok
+    ```
+  </Tab>
+  <Tab title="Windows (winget)">
+    ```powershell
+    winget install ngrok.ngrok
+    ```
+  </Tab>
+  <Tab title="Windows (Chocolatey)">
+    ```powershell
+    choco install ngrok
+    ```
+  </Tab>
+</Tabs>
+
+### ngrok Authentication Required
+
+First time using ngrok? You need to add your auth token:
+
+```bash
+ngrok config add-authtoken YOUR_TOKEN
+```
+
+Get your token from: [ngrok.com/dashboard](https://dashboard.ngrok.com/get-started/your-authtoken)
+
+## Process Management
+
+### Orphaned Server Processes
+
+If servers keep running after closing terminals:
+
+<Accordion title="Find and kill processes">
+  <Tabs>
+    <Tab title="macOS/Linux">
+      ```bash
+      # Find processes
+      lsof -i :10000
+      lsof -i :5000
+
+      # Kill by PID
+      kill -9 <PID>
+
+      # Or kill all Python processes (use with caution)
+      pkill -f server.py
+      pkill -f web_server.py
+      ```
+    </Tab>
+    <Tab title="Windows PowerShell">
+      ```powershell
+      # Find processes
+      netstat -ano | findstr :10000
+      netstat -ano | findstr :5000
+
+      # Kill by PID
+      taskkill /PID <PID> /F
+
+      # Or kill by name
+      taskkill /IM python.exe /F
+      ```
+    </Tab>
+  </Tabs>
+</Accordion>
+
+<Tip>
+The automated run scripts (`run.sh` and `run.ps1`) include cleanup handlers that stop servers when you press Ctrl+C.
+</Tip>
+
+## Still Having Issues?
+
+If none of these solutions work:
+
+<Steps>
+  <Step title="Check Python version">
+    ```bash
+    python3 --version
+    ```
+    Should be 3.10 or 3.11
+  </Step>
+
+  <Step title="Verify all dependencies">
+    ```bash
+    pip list
+    ```
+    Should show Flask and zeroc-ice
+  </Step>
+
+  <Step title="Test ICE client directly">
+    ```bash
+    python backend/client.py
+    ```
+    This bypasses the web server and tests ICE directly
+  </Step>
+
+  <Step title="Check system requirements">
+    - Ensure ports 10000 and 5000 are not blocked by firewall
+    - Verify you have network access (even localhost requires it)
+    - Check for antivirus software blocking connections
+  </Step>
+</Steps>

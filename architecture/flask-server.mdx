@@ -1,0 +1,686 @@
+---
+title: 'Flask Server Architecture'
+description: 'Deep dive into Flask routes, ICE client integration, static file serving, and API design'
+---
+
+## Flask Server Overview
+
+The Flask server (`backend/web_server.py`) serves as a **bridge** between HTTP clients (browser) and the Ice RPC server. It provides:
+
+<CardGroup cols={3}>
+  <Card title="Static File Serving" icon="file-code">
+    Serves HTML, CSS, and JavaScript files for the frontend application
+  </Card>
+  <Card title="REST API" icon="code">
+    Exposes HTTP endpoints for unit conversion operations
+  </Card>
+  <Card title="Ice Proxy" icon="network-wired">
+    Maintains persistent connection to Ice server and forwards requests
+  </Card>
+</CardGroup>
+
+## Application Setup
+
+### Flask Configuration
+
+From `web_server.py:1-20`:
+
+```python
+from flask import Flask, render_template, jsonify, request
+import Ice
+import sys
+import os
+
+# Import generated Ice module
+import Conversor
+
+# Locate frontend directory
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+FRONTEND_DIR = os.path.join(PROJECT_ROOT, 'frontend')
+
+# Create Flask app with custom static folder
+app = Flask(
+    __name__,
+    static_folder=FRONTEND_DIR,  # Serve from frontend/ directory
+    static_url_path=''           # Serve at root URL path
+)
+```
+
+<Note>
+  Setting `static_url_path=''` allows serving static files directly from root (e.g., `/style.css` instead of `/static/style.css`).
+</Note>
+
+## Ice Client Integration
+
+### ConversorClient Class
+
+The `ConversorClient` class encapsulates Ice proxy management. From `web_server.py:26-73`:
+
+```python
+class ConversorClient:
+    """Client wrapper for Ice proxy to conversion server"""
+    
+    def __init__(self):
+        self.proxy = None
+        self.communicator = None
+    
+    def connect(self):
+        """Establish connection to Ice server"""
+        try:
+            # Initialize Ice runtime
+            self.communicator = Ice.initialize(sys.argv)
+            
+            # Create proxy to remote object
+            base = self.communicator.stringToProxy(
+                "ConversorUnidades:default -p 10000"
+            )
+            
+            # Downcast to specific interface type
+            self.proxy = Conversor.ConversorUnidadesPrx.checkedCast(base)
+            
+            if not self.proxy:
+                raise RuntimeError("Servidor ICE no encontrado")
+            
+            return True
+            
+        except Ice.ConnectionRefusedException:
+            print("❌ No se puede conectar al servidor ICE en puerto 10000")
+            return False
+        except Exception as e:
+            print(f"❌ Error conectando: {e}")
+            return False
+    
+    def disconnect(self):
+        """Clean up Ice resources"""
+        if self.communicator:
+            try:
+                self.communicator.destroy()
+            except:
+                pass
+```
+
+### Proxy Method Wrappers
+
+Convenience methods that delegate to the Ice proxy:
+
+```python
+def convert_temperatura(self, valor, desde, hasta):
+    return self.proxy.convertirTemperatura(valor, desde, hasta)
+
+def convert_longitud(self, valor, desde, hasta):
+    return self.proxy.convertirLongitud(valor, desde, hasta)
+
+def convert_peso(self, valor, desde, hasta):
+    return self.proxy.convertirPeso(valor, desde, hasta)
+
+def convert_velocidad(self, valor, desde, hasta):
+    return self.proxy.convertirVelocidad(valor, desde, hasta)
+
+def get_unidades_disponibles(self, categoria):
+    return self.proxy.unidadesDisponibles(categoria)
+```
+
+<Note>
+  These wrapper methods provide a cleaner Python API and could add caching or validation logic in the future.
+</Note>
+
+### Global Client Instance
+
+```python
+# Singleton client instance
+cliente = ConversorClient()
+```
+
+The global `cliente` is initialized once and reused across all requests, maintaining a persistent Ice connection.
+
+## Route Handlers
+
+### Frontend Routes
+
+<Tabs>
+  <Tab title="Index Route">
+    ```python
+    @app.route('/')
+    def index():
+        """Serve the main index.html page"""
+        return app.send_static_file('index.html')
+    ```
+    
+    Serves the single-page application entry point.
+  </Tab>
+  
+  <Tab title="Static Assets">
+    ```python
+    @app.route('/<path:filename>')
+    def serve_static(filename):
+        """Serve CSS, JS, and other static files"""
+        return app.send_static_file(filename)
+    ```
+    
+    Catch-all route for CSS, JavaScript, images, etc.
+    
+    Examples:
+    - `/style.css` → `frontend/style.css`
+    - `/app.js` → `frontend/app.js`
+  </Tab>
+</Tabs>
+
+### API Routes
+
+#### POST /api/convert
+
+The primary endpoint for unit conversion. From `web_server.py:99-136`:
+
+```python
+@app.route('/api/convert', methods=['POST'])
+def api_convert():
+    """
+    Convert units using Ice backend
+    
+    Request:
+        {
+            "categoria": "temperatura",
+            "valor": 100,
+            "desde": "celsius",
+            "hasta": "fahrenheit"
+        }
+    
+    Response:
+        {"resultado": 212.0}
+    
+    Errors:
+        400 - Invalid units or value
+        503 - Ice server disconnected
+        500 - Internal server error
+    """
+    try:
+        # Parse JSON request
+        data = request.get_json()
+        categoria = data.get('categoria', '').lower()
+        valor = float(data.get('valor', 0))
+        desde = data.get('desde', '').lower()
+        hasta = data.get('hasta', '').lower()
+        
+        # Check Ice connection
+        if not cliente.proxy:
+            return jsonify({'error': 'Servidor ICE desconectado'}), 503
+        
+        # Route to appropriate conversion method
+        if categoria == 'temperatura':
+            resultado = cliente.convert_temperatura(valor, desde, hasta)
+        elif categoria == 'longitud':
+            resultado = cliente.convert_longitud(valor, desde, hasta)
+        elif categoria == 'peso':
+            resultado = cliente.convert_peso(valor, desde, hasta)
+        elif categoria == 'velocidad':
+            resultado = cliente.convert_velocidad(valor, desde, hasta)
+        else:
+            return jsonify({'error': f'Categoría no reconocida: {categoria}'}), 400
+        
+        # Return successful result
+        return jsonify({'resultado': resultado})
+    
+    except Conversor.UnidadInvalidaException as e:
+        # Ice exception from server
+        return jsonify({'error': f'Unidad inválida: {e.mensaje}'}), 400
+    except ValueError as e:
+        # Invalid numeric value
+        return jsonify({'error': f'Valor inválido: {str(e)}'}), 400
+    except Exception as e:
+        # Unexpected errors
+        return jsonify({'error': f'Error en servidor: {str(e)}'}), 500
+```
+
+<Steps>
+  <Step title="Parse Request">
+    Extract and normalize categoria, valor, desde, hasta from JSON body.
+  </Step>
+  
+  <Step title="Validate Connection">
+    Check if Ice proxy is connected. Return 503 if not.
+  </Step>
+  
+  <Step title="Route by Category">
+    Dispatch to appropriate Ice proxy method based on category.
+  </Step>
+  
+  <Step title="Handle Exceptions">
+    Catch Ice exceptions, validation errors, and unexpected failures.
+  </Step>
+  
+  <Step title="Return JSON">
+    Package result or error as JSON response with appropriate HTTP status.
+  </Step>
+</Steps>
+
+#### GET /api/unidades/\<categoria\>
+
+Retrieve available units for a category. From `web_server.py:139-155`:
+
+```python
+@app.route('/api/unidades/<categoria>', methods=['GET'])
+def api_unidades(categoria):
+    """
+    Get available units for a category
+    
+    Example: GET /api/unidades/temperatura
+    Response: {"unidades": "celsius, fahrenheit, kelvin"}
+    """
+    try:
+        if not cliente.proxy:
+            return jsonify({'error': 'Servidor ICE desconectado'}), 503
+        
+        unidades = cliente.get_unidades_disponibles(categoria)
+        return jsonify({'unidades': unidades})
+    
+    except Conversor.UnidadInvalidaException as e:
+        return jsonify({'error': f'Categoría inválida: {e.mensaje}'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error: {str(e)}'}), 500
+```
+
+<Note>
+  Currently not used by the frontend (units are hardcoded in JavaScript), but available for future API consumers or dynamic unit loading.
+</Note>
+
+#### GET /api/status
+
+Health check endpoint. From `web_server.py:158-162`:
+
+```python
+@app.route('/api/status', methods=['GET'])
+def api_status():
+    """Return Ice server connection status"""
+    connected = cliente.proxy is not None
+    return jsonify({
+        'connected': connected,
+        'servidor': 'localhost:10000'
+    })
+```
+
+Example responses:
+
+```json
+// Connected
+{"connected": true, "servidor": "localhost:10000"}
+
+// Disconnected
+{"connected": false, "servidor": "localhost:10000"}
+```
+
+## Error Handling
+
+### Global Error Handlers
+
+From `web_server.py:169-176`:
+
+```python
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 Not Found"""
+    return jsonify({'error': 'Ruta no encontrada'}), 404
+
+@app.errorhandler(500)
+def server_error(error):
+    """Handle 500 Internal Server Error"""
+    return jsonify({'error': 'Error interno del servidor'}), 500
+```
+
+### Exception Hierarchy
+
+<Tabs>
+  <Tab title="Domain Exceptions">
+    ```python
+    except Conversor.UnidadInvalidaException as e:
+        return jsonify({'error': f'Unidad inválida: {e.mensaje}'}), 400
+    ```
+    
+    Slice-defined exceptions from business logic. Return 400 Bad Request.
+  </Tab>
+  
+  <Tab title="Validation Exceptions">
+    ```python
+    except ValueError as e:
+        return jsonify({'error': f'Valor inválido: {str(e)}'}), 400
+    ```
+    
+    Python exceptions from invalid input (e.g., `float('abc')`). Return 400.
+  </Tab>
+  
+  <Tab title="Ice Exceptions">
+    ```python
+    except Ice.ConnectionRefusedException:
+        print("❌ No se puede conectar al servidor ICE")
+        return False
+    ```
+    
+    Ice infrastructure exceptions (connection failures, timeouts). Return 503 Service Unavailable.
+  </Tab>
+  
+  <Tab title="Generic Exceptions">
+    ```python
+    except Exception as e:
+        return jsonify({'error': f'Error: {str(e)}'}), 500
+    ```
+    
+    Catch-all for unexpected errors. Return 500 Internal Server Error.
+  </Tab>
+</Tabs>
+
+## Application Lifecycle
+
+### Startup Sequence
+
+From `web_server.py:183-206`:
+
+<Steps>
+  <Step title="Load Configuration">
+    ```python
+    host = os.getenv('HOST', 'localhost')
+    port = int(os.getenv('PORT', '5000'))
+    debug = os.getenv('DEBUG', 'true').lower() == 'true'
+    ```
+    
+    Read from environment variables with sensible defaults.
+  </Step>
+  
+  <Step title="Connect to Ice">
+    ```python
+    if cliente.connect():
+        print("✅ Conectado al servidor ICE en puerto 10000")
+    else:
+        print("⚠️  No se pudo conectar al servidor ICE")
+        print("   Asegúrate de que el servidor está corriendo")
+    ```
+    
+    Attempt connection but **continue even if it fails**. API endpoints will return 503 until connection succeeds.
+  </Step>
+  
+  <Step title="Start Flask Server">
+    ```python
+    print(f"🚀 Servidor Flask escuchando en http://{host}:{port}")
+    print("💡 Para exponerlo con ngrok ejecuta: ngrok http " + str(port))
+    app.run(debug=debug, host=host, port=port)
+    ```
+    
+    Start Flask's development server.
+  </Step>
+</Steps>
+
+### Shutdown Sequence
+
+```python
+try:
+    app.run(debug=debug, host=host, port=port)
+except KeyboardInterrupt:
+    print("\n🛑 Deteniendo servidor...")
+finally:
+    cliente.disconnect()  # Clean up Ice resources
+```
+
+<Warning>
+  Always disconnect the Ice client to properly close network connections and free resources.
+</Warning>
+
+## Configuration Options
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST` | `localhost` | Interface to bind Flask server |
+| `PORT` | `5000` | HTTP port for Flask server |
+| `DEBUG` | `true` | Enable Flask debug mode and auto-reload |
+
+### Usage Examples
+
+```bash
+# Bind to all interfaces on port 8080
+HOST=0.0.0.0 PORT=8080 python3 web_server.py
+
+# Production mode (disable debug)
+DEBUG=false python3 web_server.py
+
+# Use ngrok for external access
+python3 web_server.py &
+ngrok http 5000
+```
+
+## API Design Patterns
+
+### Request/Response Format
+
+<CardGroup cols={2}>
+  <Card title="Request Format" icon="arrow-right">
+    ```json
+    {
+      "categoria": "temperatura",
+      "valor": 100,
+      "desde": "celsius",
+      "hasta": "fahrenheit"
+    }
+    ```
+    
+    - Lowercase strings for units
+    - Numeric value (int or float)
+    - All fields required
+  </Card>
+  
+  <Card title="Success Response" icon="check">
+    ```json
+    {
+      "resultado": 212.0
+    }
+    ```
+    
+    - Single `resultado` field
+    - Double-precision float
+    - Always numeric
+  </Card>
+</CardGroup>
+
+### Error Response Format
+
+All errors follow the same structure:
+
+```json
+{
+  "error": "Descriptive error message"
+}
+```
+
+HTTP status codes indicate error type:
+- `400`: Client error (invalid input)
+- `404`: Route not found
+- `500`: Server error
+- `503`: Service unavailable (Ice disconnected)
+
+## Performance Considerations
+
+### Connection Pooling
+
+The single global `cliente` instance maintains one persistent Ice connection, avoiding connection overhead on each request.
+
+### Synchronous Blocking
+
+<Warning>
+  Flask routes block on Ice calls:
+  
+  ```python
+  resultado = cliente.convert_temperatura(valor, desde, hasta)  # Blocks
+  ```
+  
+  This is fine for the development server but limits scalability. For production:
+  - Use asynchronous Flask (Quart) with Ice async API
+  - Deploy with Gunicorn/uWSGI with multiple workers
+  - Add request queueing for high load
+</Warning>
+
+### Caching Opportunities
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=128)
+def cached_convert(categoria, valor, desde, hasta):
+    """Cache recent conversions"""
+    return cliente.convert_temperatura(valor, desde, hasta)
+```
+
+Benefits:
+- Reduces Ice calls for duplicate conversions
+- Sub-microsecond response for cache hits
+- Especially useful for common conversions (32°F → 0°C)
+
+## Security Considerations
+
+### Current Vulnerabilities
+
+<Warning>
+  - **No authentication**: Anyone can call the API
+  - **No rate limiting**: Vulnerable to DoS attacks
+  - **No input sanitization**: Trusts all client input
+  - **Debug mode in default**: Exposes stack traces
+</Warning>
+
+### Production Hardening
+
+<Steps>
+  <Step title="Add Authentication">
+    ```python
+    from flask_httpauth import HTTPBasicAuth
+    auth = HTTPBasicAuth()
+    
+    @app.route('/api/convert', methods=['POST'])
+    @auth.login_required
+    def api_convert():
+        # ...
+    ```
+  </Step>
+  
+  <Step title="Enable Rate Limiting">
+    ```python
+    from flask_limiter import Limiter
+    limiter = Limiter(app, key_func=lambda: request.remote_addr)
+    
+    @app.route('/api/convert', methods=['POST'])
+    @limiter.limit("60 per minute")
+    def api_convert():
+        # ...
+    ```
+  </Step>
+  
+  <Step title="Validate Input">
+    ```python
+    ALLOWED_CATEGORIES = {'temperatura', 'longitud', 'peso', 'velocidad'}
+    
+    if categoria not in ALLOWED_CATEGORIES:
+        return jsonify({'error': 'Invalid category'}), 400
+    
+    if not (-1e10 < valor < 1e10):  # Reasonable bounds
+        return jsonify({'error': 'Value out of range'}), 400
+    ```
+  </Step>
+  
+  <Step title="Disable Debug">
+    ```python
+    # Use production WSGI server
+    gunicorn -w 4 -b 0.0.0.0:5000 web_server:app
+    ```
+  </Step>
+</Steps>
+
+## Testing the API
+
+### Using curl
+
+```bash
+# Convert 100°C to Fahrenheit
+curl -X POST http://localhost:5000/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{"categoria":"temperatura","valor":100,"desde":"celsius","hasta":"fahrenheit"}'
+
+# Get available units
+curl http://localhost:5000/api/unidades/temperatura
+
+# Check status
+curl http://localhost:5000/api/status
+```
+
+### Using Python requests
+
+```python
+import requests
+
+# Convert units
+response = requests.post('http://localhost:5000/api/convert', json={
+    'categoria': 'temperatura',
+    'valor': 100,
+    'desde': 'celsius',
+    'hasta': 'fahrenheit'
+})
+
+if response.status_code == 200:
+    result = response.json()['resultado']
+    print(f"Result: {result}°F")  # 212.0°F
+else:
+    print(f"Error: {response.json()['error']}")
+```
+
+## Deployment Patterns
+
+### Development
+
+```bash
+# Terminal 1: Start Ice server
+python3 backend/server.py
+
+# Terminal 2: Start Flask server
+python3 backend/web_server.py
+
+# Access at http://localhost:5000
+```
+
+### Production with Gunicorn
+
+```bash
+# Install Gunicorn
+pip install gunicorn
+
+# Start with 4 workers
+DEBUG=false gunicorn -w 4 -b 0.0.0.0:5000 backend.web_server:app
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  ice-server:
+    build: .
+    command: python3 backend/server.py
+    ports:
+      - "10000:10000"
+  
+  flask-server:
+    build: .
+    command: gunicorn -w 4 -b 0.0.0.0:5000 backend.web_server:app
+    ports:
+      - "5000:5000"
+    depends_on:
+      - ice-server
+    environment:
+      - DEBUG=false
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Frontend Architecture" icon="browser" href="/architecture/frontend">
+    Learn how the JavaScript client consumes the API
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Complete API endpoint documentation
+  </Card>
+</CardGroup>

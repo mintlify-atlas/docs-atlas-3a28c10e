@@ -1,0 +1,356 @@
+---
+title: Local Setup
+description: Set up and run the Conversor de Unidades application locally on your machine
+---
+
+The application can be run using automated scripts or manually. The automated method is recommended for quick setup.
+
+## Prerequisites
+
+Before running the application, ensure you have:
+
+- Python 3.10 or 3.11
+- pip (Python package manager)
+- Virtual environment activated
+- All dependencies installed from `requirements.txt`
+
+<Note>
+The application requires two servers to run:
+- **ICE Server** on port 10000 (backend communication)
+- **Flask Web Server** on port 5000 (web interface)
+</Note>
+
+## Automated Setup (Recommended)
+
+The project includes automated run scripts that handle starting both servers for you.
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    <Steps>
+      <Step title="Make script executable (first time only)">
+        ```bash
+        chmod +x run.sh
+        ```
+      </Step>
+
+      <Step title="Run the script">
+        ```bash
+        ./run.sh
+        ```
+      </Step>
+
+      <Step title="Expected output">
+        ```bash
+        🚀 Iniciando Conversor de Unidades...
+
+        [1/3] Levantando ICE Server en puerto 10000
+        ICE PID: 12345
+        [2/3] Levantando Flask Server en puerto 5000
+        Flask PID: 12346
+        [3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)
+        ```
+      </Step>
+
+      <Step title="Choose ngrok option">
+        Type `n` to run locally without ngrok:
+        
+        ```bash
+        ✅ Servidores activos:
+           - ICE Server: http://localhost:10000
+           - Web App: http://localhost:5000
+        Presiona Ctrl+C para detener
+        ```
+      </Step>
+    </Steps>
+
+    <Tip>
+    The script automatically handles process cleanup when you press `Ctrl+C`
+    </Tip>
+  </Tab>
+
+  <Tab title="Windows (PowerShell)">
+    <Steps>
+      <Step title="Set execution policy (if needed)">
+        ```powershell
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+        ```
+      </Step>
+
+      <Step title="Run the script">
+        ```powershell
+        powershell -ExecutionPolicy Bypass -File run.ps1
+        ```
+      </Step>
+
+      <Step title="Expected output">
+        ```powershell
+        🚀 Iniciando Conversor de Unidades...
+
+        [1/3] Levantando ICE Server en puerto 10000
+        ICE PID: 12345
+        [2/3] Levantando Flask Server en puerto 5000
+        Flask PID: 12346
+        [3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)
+        ```
+      </Step>
+
+      <Step title="Choose ngrok option">
+        Type `n` to run locally without ngrok:
+        
+        ```powershell
+        ✅ Servidores activos:
+           - ICE Server: http://localhost:10000
+           - Web App: http://localhost:5000
+        Presiona Ctrl+C para detener
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+### How the Automated Scripts Work
+
+The scripts perform the following operations:
+
+1. Validate that you're running from the project root directory
+2. Start the ICE server in the background (`backend/server.py`)
+3. Wait 3 seconds for ICE server initialization
+4. Start the Flask web server in the background (`backend/web_server.py`)
+5. Wait 2 seconds for Flask server initialization
+6. Prompt for optional ngrok tunnel setup
+7. Handle graceful shutdown with `Ctrl+C`
+
+<CodeGroup>
+```bash run.sh (excerpt)
+# Terminal 1: ICE Server
+echo -e "${GREEN}[1/3] Levantando ICE Server en puerto 10000${NC}"
+cd backend
+python3 server.py &
+ICE_PID=$!
+
+# Esperar a que ICE esté listo
+sleep 3
+
+# Terminal 2: Flask Server
+echo -e "${GREEN}[2/3] Levantando Flask Server en puerto 5000${NC}"
+python3 web_server.py &
+FLASK_PID=$!
+```
+
+```powershell run.ps1 (excerpt)
+# Terminal 1: ICE Server
+Write-Host "[1/3] Levantando ICE Server en puerto 10000" -ForegroundColor $GREEN
+$iceProcess = Start-Process python3 -ArgumentList "backend/server.py" -PassThru
+Start-Sleep -Seconds 3
+
+# Terminal 2: Flask Server
+Write-Host "[2/3] Levantando Flask Server en puerto 5000" -ForegroundColor $GREEN
+$flaskProcess = Start-Process python3 -ArgumentList "backend/web_server.py" -PassThru
+Start-Sleep -Seconds 2
+```
+</CodeGroup>
+
+## Manual Setup
+
+If you prefer more control or need to debug individual components, you can start each server manually.
+
+<Steps>
+  <Step title="Open two terminal windows">
+    You'll need separate terminals for the ICE server and Flask server.
+  </Step>
+
+  <Step title="Activate virtual environment in both terminals">
+    <Tabs>
+      <Tab title="macOS/Linux">
+        ```bash
+        cd /path/to/Conversor_Unidades_Remoto-1
+        source .venv/bin/activate
+        ```
+      </Tab>
+      <Tab title="Windows (PowerShell)">
+        ```powershell
+        cd C:\path\to\Conversor_Unidades_Remoto-1
+        .\.venv\Scripts\Activate.ps1
+        ```
+      </Tab>
+      <Tab title="Windows (CMD)">
+        ```bat
+        cd C:\path\to\Conversor_Unidades_Remoto-1
+        .venv\Scripts\activate.bat
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Start ICE server (Terminal 1)">
+    ```bash
+    cd backend
+    python3 server.py
+    ```
+    
+    You should see output confirming the server is listening on port 10000.
+  </Step>
+
+  <Step title="Start Flask web server (Terminal 2)">
+    ```bash
+    cd backend
+    python3 web_server.py
+    ```
+    
+    Expected output:
+    ```bash
+    ✓ Iniciando servidor Flask...
+    ✓ Conectado al servidor ICE en puerto 10000
+    ✓ Servidor Flask escuchando en http://localhost:5000
+      Para exponerlo con ngrok ejecuta: ngrok http 5000
+    ```
+  </Step>
+
+  <Step title="Access the application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:5000
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Make sure to start the ICE server **before** the Flask server. The Flask server needs to connect to the ICE server during startup.
+</Warning>
+
+## Verifying the Setup
+
+Once both servers are running, you can verify the setup:
+
+### Check Server Status
+
+Visit the status endpoint:
+
+```bash
+curl http://localhost:5000/api/status
+```
+
+Expected response:
+```json
+{
+  "connected": true,
+  "servidor": "localhost:10000"
+}
+```
+
+### Check Available Units
+
+Test the API by requesting available temperature units:
+
+```bash
+curl http://localhost:5000/api/unidades/temperatura
+```
+
+Expected response:
+```json
+{
+  "unidades": "celsius, fahrenheit, kelvin"
+}
+```
+
+### Test a Conversion
+
+Perform a sample conversion:
+
+```bash
+curl -X POST http://localhost:5000/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "categoria": "temperatura",
+    "valor": 32,
+    "desde": "fahrenheit",
+    "hasta": "celsius"
+  }'
+```
+
+Expected response:
+```json
+{
+  "resultado": 0.0
+}
+```
+
+## Troubleshooting
+
+### ICE Server Connection Failed
+
+If you see "No se pudo conectar al servidor ICE":
+
+1. Verify the ICE server is running
+2. Check if port 10000 is available
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ```bash
+    lsof -i :10000
+    ```
+  </Tab>
+  <Tab title="Windows (PowerShell)">
+    ```powershell
+    netstat -ano | findstr :10000
+    ```
+  </Tab>
+</Tabs>
+
+### Port Already in Use
+
+If port 5000 is already occupied:
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ```bash
+    # Find process using port 5000
+    lsof -i :5000
+    
+    # Kill the process (replace PID)
+    kill -9 <PID>
+    ```
+  </Tab>
+  <Tab title="Windows (PowerShell)">
+    ```powershell
+    # Find process using port 5000
+    netstat -ano | findstr :5000
+    
+    # Kill the process (replace PID)
+    taskkill /PID <PID> /F
+    ```
+  </Tab>
+</Tabs>
+
+Alternatively, use [environment variables](/deployment/environment-variables) to run Flask on a different port.
+
+### Virtual Environment Not Activated
+
+If you get import errors, ensure your virtual environment is activated:
+
+```bash
+# You should see (.venv) in your prompt
+(.venv) user@machine:~/project$
+```
+
+## Stopping the Application
+
+### Automated Scripts
+
+Press `Ctrl+C` in the terminal running the script. The cleanup function will automatically terminate both servers.
+
+### Manual Setup
+
+Press `Ctrl+C` in each terminal window to stop the respective servers.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Configure host, port, and debug settings
+  </Card>
+  <Card title="ngrok Tunnel" icon="globe" href="/deployment/ngrok-tunnel">
+    Expose your local server to the internet
+  </Card>
+</CardGroup>

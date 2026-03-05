@@ -1,0 +1,312 @@
+---
+title: Environment Variables
+description: Configure the Flask web server using environment variables
+---
+
+The Flask web server (`backend/web_server.py`) supports configuration through environment variables, allowing you to customize the host, port, and debug mode without modifying code.
+
+## Available Variables
+
+The following environment variables are supported:
+
+<ResponseField name="HOST" type="string" default="localhost">
+  The network interface to bind the Flask server to.
+  
+  - Use `localhost` or `127.0.0.1` for local-only access
+  - Use `0.0.0.0` to accept connections from any network interface
+</ResponseField>
+
+<ResponseField name="PORT" type="integer" default="5000">
+  The port number for the Flask web server.
+  
+  - Default is `5000`
+  - Use a different port if 5000 is already in use
+  - Must be between 1024 and 65535 for non-privileged users
+</ResponseField>
+
+<ResponseField name="DEBUG" type="boolean" default="true">
+  Enable or disable Flask debug mode.
+  
+  - `true` or `True` enables debug mode (automatic reloading, detailed errors)
+  - `false` or `False` disables debug mode (recommended for production)
+</ResponseField>
+
+## Implementation Details
+
+The Flask server reads these variables during startup:
+
+```python web_server.py:184-186
+def main():
+    host = os.getenv('HOST', 'localhost')
+    port = int(os.getenv('PORT', '5000'))
+    debug = os.getenv('DEBUG', 'true').lower() == 'true'
+```
+
+<Note>
+The `DEBUG` variable performs a case-insensitive string comparison. Any value that doesn't equal "true" (case-insensitive) will be treated as `False`.
+</Note>
+
+## Setting Environment Variables
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ### One-time Execution
+
+    Set variables inline before the command:
+
+    ```bash
+    HOST=0.0.0.0 PORT=8080 DEBUG=false python backend/web_server.py
+    ```
+
+    ### Export for Session
+
+    Export variables for the current terminal session:
+
+    ```bash
+    export HOST=0.0.0.0
+    export PORT=8080
+    export DEBUG=false
+    python backend/web_server.py
+    ```
+
+    ### Permanent Configuration
+
+    Add to your shell profile (`~/.bashrc`, `~/.zshrc`):
+
+    ```bash
+    export HOST=0.0.0.0
+    export PORT=8080
+    export DEBUG=false
+    ```
+
+    Then reload your profile:
+    ```bash
+    source ~/.bashrc  # or ~/.zshrc
+    ```
+  </Tab>
+
+  <Tab title="Windows (PowerShell)">
+    ### One-time Execution
+
+    Set variables before running the command:
+
+    ```powershell
+    $env:HOST="0.0.0.0"
+    $env:PORT="8080"
+    $env:DEBUG="false"
+    python backend/web_server.py
+    ```
+
+    ### Session-wide Configuration
+
+    Variables set with `$env:` persist for the current PowerShell session:
+
+    ```powershell
+    $env:HOST="0.0.0.0"
+    $env:PORT="8080"
+    $env:DEBUG="false"
+    # Now run the server
+    python backend/web_server.py
+    ```
+
+    ### Permanent Configuration
+
+    Set user-level environment variables:
+
+    ```powershell
+    [System.Environment]::SetEnvironmentVariable('HOST', '0.0.0.0', 'User')
+    [System.Environment]::SetEnvironmentVariable('PORT', '8080', 'User')
+    [System.Environment]::SetEnvironmentVariable('DEBUG', 'false', 'User')
+    ```
+
+    <Warning>
+    You need to restart PowerShell after setting permanent environment variables.
+    </Warning>
+  </Tab>
+
+  <Tab title="Windows (CMD)">
+    ### One-time Execution
+
+    Set variables before running the command:
+
+    ```bat
+    set HOST=0.0.0.0
+    set PORT=8080
+    set DEBUG=false
+    python backend\web_server.py
+    ```
+
+    ### Batch Script
+
+    Create a `.bat` file:
+
+    ```bat start.bat
+    @echo off
+    set HOST=0.0.0.0
+    set PORT=8080
+    set DEBUG=false
+    cd backend
+    python web_server.py
+    ```
+
+    Run with:
+    ```bat
+    start.bat
+    ```
+  </Tab>
+</Tabs>
+
+## Common Configurations
+
+### Development (Default)
+
+For local development with hot-reloading:
+
+```bash
+HOST=localhost PORT=5000 DEBUG=true python backend/web_server.py
+```
+
+Expected output:
+```bash
+✓ Iniciando servidor Flask...
+✓ Conectado al servidor ICE en puerto 10000
+✓ Servidor Flask escuchando en http://localhost:5000
+  Para exponerlo con ngrok ejecuta: ngrok http 5000
+ * Serving Flask app 'web_server'
+ * Debug mode: on
+```
+
+<Tip>
+Debug mode enables automatic code reloading and provides detailed error pages, making development faster.
+</Tip>
+
+### Network Access
+
+To allow connections from other devices on your network:
+
+```bash
+HOST=0.0.0.0 PORT=5000 DEBUG=true python backend/web_server.py
+```
+
+Your application will be accessible at:
+- `http://localhost:5000` (local machine)
+- `http://<your-ip>:5000` (other devices on the network)
+
+<Warning>
+Binding to `0.0.0.0` exposes your application to all network interfaces. Only use this on trusted networks.
+</Warning>
+
+### Production-like
+
+For testing in production-like conditions:
+
+```bash
+HOST=0.0.0.0 PORT=8080 DEBUG=false python backend/web_server.py
+```
+
+<Note>
+Flask's built-in server is not recommended for production deployments. For production, use a WSGI server like Gunicorn or uWSGI.
+</Note>
+
+### Custom Port
+
+If port 5000 is occupied (common on macOS where AirPlay uses port 5000):
+
+```bash
+PORT=8080 python backend/web_server.py
+```
+
+## Using with Automated Scripts
+
+The automated run scripts (`run.sh` and `run.ps1`) don't currently pass environment variables to the servers. To use custom configurations with the automated scripts, you can:
+
+### Option 1: Modify the Scripts
+
+Edit the run script to include environment variables:
+
+<CodeGroup>
+```bash run.sh (modified)
+# Terminal 2: Flask Server
+echo -e "${GREEN}[2/3] Levantando Flask Server en puerto 8080${NC}"
+HOST=0.0.0.0 PORT=8080 DEBUG=false python3 web_server.py &
+FLASK_PID=$!
+```
+
+```powershell run.ps1 (modified)
+# Terminal 2: Flask Server
+Write-Host "[2/3] Levantando Flask Server en puerto 8080" -ForegroundColor $GREEN
+$env:HOST="0.0.0.0"
+$env:PORT="8080"
+$env:DEBUG="false"
+$flaskProcess = Start-Process python3 -ArgumentList "backend/web_server.py" -PassThru
+```
+</CodeGroup>
+
+### Option 2: Export Before Running
+
+Export variables in your current shell session before running the script:
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ```bash
+    export HOST=0.0.0.0
+    export PORT=8080
+    export DEBUG=false
+    ./run.sh
+    ```
+  </Tab>
+  <Tab title="Windows (PowerShell)">
+    ```powershell
+    $env:HOST="0.0.0.0"
+    $env:PORT="8080"
+    $env:DEBUG="false"
+    powershell -ExecutionPolicy Bypass -File run.ps1
+    ```
+  </Tab>
+</Tabs>
+
+## Verifying Configuration
+
+When the Flask server starts, it prints the configuration:
+
+```bash
+✓ Servidor Flask escuchando en http://localhost:5000
+```
+
+If you've changed the host or port, this message will reflect your changes:
+
+```bash
+✓ Servidor Flask escuchando en http://0.0.0.0:8080
+```
+
+You can also check the debug mode status in the Flask startup messages:
+
+```bash
+* Debug mode: on  # DEBUG=true
+* Debug mode: off # DEBUG=false
+```
+
+## Connection String Format
+
+The Flask server connects to the ICE server using a hardcoded connection string:
+
+```python web_server.py:37-39
+base = self.communicator.stringToProxy(
+    "ConversorUnidades:default -p 10000"
+)
+```
+
+<Note>
+The ICE server port (10000) is not configurable via environment variables. It's hardcoded in both the server and client connection strings.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Local Setup" icon="laptop" href="/deployment/local-setup">
+    Learn how to run the application locally
+  </Card>
+  <Card title="ngrok Tunnel" icon="globe" href="/deployment/ngrok-tunnel">
+    Expose your server to the internet
+  </Card>
+</CardGroup>

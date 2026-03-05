@@ -1,0 +1,288 @@
+---
+title: 'Client Usage'
+description: 'How to connect to the ICE server and invoke remote methods'
+icon: 'laptop-code'
+---
+
+## Overview
+
+The client application (`backend/client.py`) demonstrates how to connect to the remote Conversor service and invoke its methods using ZeroC ICE.
+
+## Client Initialization
+
+<Steps>
+  <Step title="Import the ICE library and generated stubs">
+    ```python
+    import Ice
+    import Conversor  # Generated module from slice2py
+    ```
+  </Step>
+
+  <Step title="Initialize the ICE communicator">
+    The communicator is the main entry point for ICE functionality.
+    
+    ```python
+    with Ice.initialize(sys.argv) as communicator:
+        # Client code here
+    ```
+    
+    <Note>
+      Using a context manager ensures proper cleanup when the client exits.
+    </Note>
+  </Step>
+
+  <Step title="Create a proxy to the remote object">
+    ```python
+    base = communicator.stringToProxy(
+        "ConversorUnidades:default -h localhost -p 10000"
+    )
+    ```
+    
+    The proxy string format is:
+    ```
+    ObjectName:protocol -h hostname -p port
+    ```
+    
+    <ParamField path="ConversorUnidades" type="string">
+      The identity name registered on the server
+    </ParamField>
+    
+    <ParamField path="default" type="string">
+      Protocol type (TCP in this case)
+    </ParamField>
+    
+    <ParamField path="localhost" type="string">
+      Server hostname or IP address
+    </ParamField>
+    
+    <ParamField path="10000" type="number">
+      Server port number
+    </ParamField>
+  </Step>
+
+  <Step title="Cast the proxy to the specific interface type">
+    ```python
+    conversor = Conversor.ConversorUnidadesPrx.checkedCast(base)
+    
+    if not conversor:
+        raise RuntimeError("No se pudo obtener el proxy del servidor.")
+    ```
+    
+    <Warning>
+      `checkedCast` verifies at runtime that the remote object implements the expected interface. Always check if the result is `None`.
+    </Warning>
+  </Step>
+</Steps>
+
+## Making Remote Calls
+
+Once you have the proxy, calling remote methods looks like local function calls:
+
+### Temperature Conversion
+
+```python
+# 100 Celsius to Fahrenheit
+result = conversor.convertirTemperatura(100, "celsius", "fahrenheit")
+print(f"100 celsius -> fahrenheit: {result:.4f}")  # 212.0000
+
+# 0 Celsius to Kelvin
+result = conversor.convertirTemperatura(0, "celsius", "kelvin")
+print(f"0 celsius -> kelvin: {result:.4f}")  # 273.1500
+
+# 98.6 Fahrenheit to Celsius
+result = conversor.convertirTemperatura(98.6, "fahrenheit", "celsius")
+print(f"98.6 fahrenheit -> celsius: {result:.4f}")  # 37.0000
+```
+
+### Length Conversion
+
+```python
+# 1 Mile to Kilometers
+result = conversor.convertirLongitud(1, "mi", "km")
+print(f"1 mi -> km: {result:.4f}")  # 1.6093
+
+# 100 Feet to Meters
+result = conversor.convertirLongitud(100, "ft", "m")
+print(f"100 ft -> m: {result:.4f}")  # 30.4800
+
+# 5 Kilometers to Meters
+result = conversor.convertirLongitud(5, "km", "m")
+print(f"5 km -> m: {result:.4f}")  # 5000.0000
+```
+
+### Weight Conversion
+
+```python
+# 70 Kilograms to Pounds
+result = conversor.convertirPeso(70, "kg", "lb")
+print(f"70 kg -> lb: {result:.4f}")  # 154.3235
+
+# 1 Pound to Grams
+result = conversor.convertirPeso(1, "lb", "g")
+print(f"1 lb -> g: {result:.4f}")  # 453.5920
+```
+
+### Velocity Conversion
+
+```python
+# 120 km/h to mph
+result = conversor.convertirVelocidad(120, "kmh", "mph")
+print(f"120 kmh -> mph: {result:.4f}")  # 74.5645
+
+# 60 mph to m/s
+result = conversor.convertirVelocidad(60, "mph", "ms")
+print(f"60 mph -> ms: {result:.4f}")  # 26.8224
+```
+
+### Query Available Units
+
+```python
+for categoria in ["temperatura", "longitud", "peso", "velocidad"]:
+    unidades = conversor.unidadesDisponibles(categoria)
+    print(f"{categoria}: {unidades}")
+
+# Output:
+# temperatura: celsius, fahrenheit, kelvin
+# longitud: m, km, mi, ft
+# peso: kg, lb, g
+# velocidad: kmh, mph, ms
+```
+
+## Exception Handling
+
+ICE exceptions are serialized and propagated from server to client:
+
+```python
+try:
+    result = conversor.convertirTemperatura(100, "invalid", "celsius")
+except Conversor.UnidadInvalidaException as e:
+    print(f"Error de conversion: {e.mensaje}")
+    # Error de conversion: Unidad origen 'invalid' no valida para temperatura. 
+    # Validas: celsius, fahrenheit, kelvin
+```
+
+<Tip>
+  The exception contains a descriptive `mensaje` field that explains exactly what went wrong, including which units are valid.
+</Tip>
+
+## Complete Client Example
+
+Here's the full client code from `backend/client.py`:
+
+<CodeGroup>
+```python backend/client.py
+import sys
+import os
+import Ice
+
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(CURRENT_DIR)
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+import Conversor
+
+def main():
+    with Ice.initialize(sys.argv) as communicator:
+        base = communicator.stringToProxy(
+            "ConversorUnidades:default -h localhost -p 10000"
+        )
+        
+        conversor = Conversor.ConversorUnidadesPrx.checkedCast(base)
+        
+        if not conversor:
+            raise RuntimeError("No se pudo obtener el proxy del servidor.")
+        
+        try:
+            print("=== TEMPERATURA ===")
+            r = conversor.convertirTemperatura(100, "celsius", "fahrenheit")
+            print(f"100 celsius -> fahrenheit: {r:.4f}")
+            
+            r = conversor.convertirTemperatura(0, "celsius", "kelvin")
+            print(f"0 celsius -> kelvin: {r:.4f}")
+            
+            r = conversor.convertirTemperatura(98.6, "fahrenheit", "celsius")
+            print(f"98.6 fahrenheit -> celsius: {r:.4f}")
+            
+            print("\n=== LONGITUD ===")
+            r = conversor.convertirLongitud(1, "mi", "km")
+            print(f"1 mi -> km: {r:.4f}")
+            
+            r = conversor.convertirLongitud(100, "ft", "m")
+            print(f"100 ft -> m: {r:.4f}")
+            
+            r = conversor.convertirLongitud(5, "km", "m")
+            print(f"5 km -> m: {r:.4f}")
+            
+            print("\n=== PESO ===")
+            r = conversor.convertirPeso(70, "kg", "lb")
+            print(f"70 kg -> lb: {r:.4f}")
+            
+            r = conversor.convertirPeso(1, "lb", "g")
+            print(f"1 lb -> g: {r:.4f}")
+            
+            print("\n=== VELOCIDAD ===")
+            r = conversor.convertirVelocidad(120, "kmh", "mph")
+            print(f"120 kmh -> mph: {r:.4f}")
+            
+            r = conversor.convertirVelocidad(60, "mph", "ms")
+            print(f"60 mph -> ms: {r:.4f}")
+            
+            print("\n=== UNIDADES DISPONIBLES ===")
+            for cat in ["temperatura", "longitud", "peso", "velocidad"]:
+                print(f"{cat}: {conversor.unidadesDisponibles(cat)}")
+        
+        except Conversor.UnidadInvalidaException as e:
+            print(f"Error de conversion: {e.mensaje}")
+
+if __name__ == "__main__":
+    main()
+```
+</CodeGroup>
+
+## Running the Client
+
+<Steps>
+  <Step title="Ensure the server is running">
+    The server must be started first on port 10000.
+    ```bash
+    python backend/server.py
+    ```
+  </Step>
+
+  <Step title="Run the client">
+    ```bash
+    python backend/client.py
+    ```
+  </Step>
+
+  <Step title="View the output">
+    The client will execute all conversion examples and display results.
+  </Step>
+</Steps>
+
+## Key Concepts
+
+<CardGroup cols={2}>
+  <Card title="Proxy" icon="link">
+    A local object that represents the remote server object. Method calls on the proxy are transparently converted to network requests.
+  </Card>
+  
+  <Card title="Communicator" icon="tower-broadcast">
+    The ICE runtime that manages connections, threading, and protocol handling.
+  </Card>
+  
+  <Card title="checkedCast" icon="shield-check">
+    Runtime verification that the remote object implements the expected interface.
+  </Card>
+  
+  <Card title="Exception Propagation" icon="triangle-exclamation">
+    Server exceptions are serialized and re-thrown on the client side.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Card title="Server Implementation" icon="server" href="/ice/server-implementation">
+  Learn how the server implements the conversion logic
+</Card>

@@ -1,0 +1,257 @@
+---
+title: Using the App
+description: Learn how to use the Unit Converter interface to perform conversions
+icon: "mouse-pointer"
+---
+
+The Unit Converter provides an intuitive interface for converting between different units across multiple categories. This guide walks you through all the features of the application.
+
+## Interface Overview
+
+The application is organized into several key areas:
+
+<CardGroup cols={2}>
+  <Card title="Category Tabs" icon="folder">
+    Switch between Temperature, Length, Weight, and Velocity conversions
+  </Card>
+  <Card title="Result Display" icon="display">
+    Large, prominent screen showing your conversion result
+  </Card>
+  <Card title="Input Fields" icon="pen-field">
+    Enter values and select source/target units
+  </Card>
+  <Card title="History Panel" icon="clock-rotate-left">
+    View and reload your recent conversions
+  </Card>
+</CardGroup>
+
+## Performing a Conversion
+
+<Steps>
+  <Step title="Select a Category">
+    Click one of the four category tabs at the top:
+    - **Temp** (Temperature)
+    - **Long** (Length)
+    - **Peso** (Weight)
+    - **Vel** (Velocity)
+
+    The active tab is highlighted with an accent color.
+  </Step>
+
+  <Step title="Enter a Value">
+    Type a numeric value in the **Valor** (Value) field. You can enter:
+    - Whole numbers: `100`
+    - Decimals: `98.6`
+    - Negative numbers: `-40`
+
+    <Tip>
+      The conversion happens automatically as you type! No need to click the Convert button for most operations.
+    </Tip>
+  </Step>
+
+  <Step title="Select Source Unit">
+    Choose your starting unit from the **De** (From) dropdown:
+
+    <Tabs>
+      <Tab title="Temperature">
+        - °C (Celsius)
+        - °F (Fahrenheit)
+        - K (Kelvin)
+      </Tab>
+      <Tab title="Length">
+        - m (meters)
+        - km (kilometers)
+        - mi (miles)
+        - ft (feet)
+      </Tab>
+      <Tab title="Weight">
+        - kg (kilograms)
+        - lb (pounds)
+        - g (grams)
+      </Tab>
+      <Tab title="Velocity">
+        - km/h (kilometers per hour)
+        - mph (miles per hour)
+        - m/s (meters per second)
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Select Target Unit">
+    Choose your destination unit from the **Hacia** (To) dropdown using the same units listed above.
+  </Step>
+
+  <Step title="View the Result">
+    The result appears automatically in the large display screen above the input fields. The result includes:
+    - The converted numeric value (formatted to 6 decimal places maximum)
+    - The target unit label
+
+    <Note>
+      If you see "..." in the result screen, the conversion is processing. This typically happens instantly.
+    </Note>
+  </Step>
+</Steps>
+
+## Real-Time Conversion
+
+The app features **automatic conversion** that triggers when you:
+
+- Type or modify the value in the input field
+- Change the source unit dropdown
+- Change the target unit dropdown
+
+```javascript
+// From app.js:213-223
+document.getElementById("valor").addEventListener("input", () => {
+    if (document.getElementById("valor").value) doConvert();
+});
+
+document.getElementById("desde").addEventListener("change", () => {
+    if (document.getElementById("valor").value) doConvert();
+});
+
+document.getElementById("hasta").addEventListener("change", () => {
+    if (document.getElementById("valor").value) doConvert();
+});
+```
+
+<Tip>
+You can also press **Enter** while focused on the value field or click the **Convertir** button to manually trigger a conversion.
+</Tip>
+
+## Swapping Units
+
+The swap button (↔) between the input fields lets you instantly reverse the conversion direction:
+
+<Steps>
+  <Step title="Click the Swap Button">
+    Click the circular button with the left-right arrow icon located between the "Valor" and "De" fields.
+  </Step>
+
+  <Step title="Units Are Exchanged">
+    The source and target units switch places. If you have a value entered, the conversion recalculates automatically.
+  </Step>
+</Steps>
+
+**Example:**
+- Before swap: 100 km → mi
+- After swap: [result value] mi → km
+
+```javascript
+// From app.js:205-210
+document.getElementById("swap-btn").addEventListener("click", () => {
+    const desdeEl = document.getElementById("desde");
+    const hastaEl = document.getElementById("hasta");
+    [desdeEl.value, hastaEl.value] = [hastaEl.value, desdeEl.value];
+    if (document.getElementById("valor").value) doConvert();
+});
+```
+
+## Using the Conversion History
+
+The app tracks your last **5 conversions** in the History panel at the bottom:
+
+### Viewing History
+
+Each history item shows:
+- The original value and unit (left side)
+- The converted result and unit (right side, in accent color)
+
+<Note>
+History items are stored in memory only and will be lost when you refresh the page.
+</Note>
+
+### Reloading a Conversion
+
+Click any history item to instantly reload that conversion:
+
+<Steps>
+  <Step title="Click a History Item">
+    Click on any of the conversion entries in the "Recientes" (Recent) section.
+  </Step>
+
+  <Step title="Settings Are Restored">
+    The app automatically:
+    - Switches to the correct category tab
+    - Loads the original value
+    - Sets the source and target units
+    - Recalculates the conversion
+  </Step>
+</Steps>
+
+```javascript
+// From app.js:169-180
+function loadHistory(i) {
+    const h = history[i];
+    document.querySelectorAll(".tab").forEach(t =>
+        t.classList.toggle("active", t.dataset.cat === h.cat)
+    );
+    currentCat = h.cat;
+    populateSelects(h.cat);
+    document.getElementById("valor").value = h.val;
+    document.getElementById("desde").value = h.desde;
+    document.getElementById("hasta").value = h.hasta;
+    doConvert();
+}
+```
+
+## Status Indicator
+
+The **pulsing dot** in the top-right corner indicates the app is running and connected:
+
+- **Pulsing green/yellow**: App is active and ready
+- The status dot uses the accent color defined by your current theme
+
+<Warning>
+If you see "Error (sin conexión)" in the result display, the backend server may be unavailable. Check that the Flask server is running on the expected port.
+</Warning>
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| **Tab** | Navigate between input fields |
+| **Enter** | Trigger conversion (when focused on value field) |
+| **Arrow Up/Down** | Navigate dropdown options |
+
+## Error Handling
+
+The app provides clear feedback for common issues:
+
+<Accordion title="'Ingresa un valor' Error">
+  **Cause:** You tried to convert without entering a numeric value.
+  
+  **Solution:** Enter a number in the Valor field before converting.
+</Accordion>
+
+<Accordion title="'Error (sin conexión)' Message">
+  **Cause:** The backend server is not responding.
+  
+  **Solution:** Ensure the Flask server is running and the ICE backend is available on port 10000.
+</Accordion>
+
+<Accordion title="Empty Result Screen">
+  **Cause:** No conversion has been performed yet, or the category was changed.
+  
+  **Solution:** This is normal. Enter a value and the result will appear.
+</Accordion>
+
+## Tips for Best Experience
+
+<CardGroup cols={2}>
+  <Card title="Decimal Precision" icon="calculator">
+    Results are automatically rounded to 6 decimal places and trailing zeros are removed for clean display.
+  </Card>
+  
+  <Card title="Category Switching" icon="arrow-right-arrow-left">
+    When you switch categories, the value field clears automatically to prevent confusion between different unit types.
+  </Card>
+  
+  <Card title="Same Unit Conversions" icon="equals">
+    Converting between identical units (e.g., kg → kg) returns the original value without making a server request.
+  </Card>
+  
+  <Card title="Responsive Design" icon="mobile">
+    The interface adapts to your screen size with optimized layouts for mobile, tablet, and desktop devices.
+  </Card>
+</CardGroup>

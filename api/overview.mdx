@@ -1,0 +1,154 @@
+---
+title: 'REST API Overview'
+description: 'Introduction to the Conversor de Unidades REST API'
+---
+
+## Introduction
+
+The Conversor de Unidades REST API provides programmatic access to unit conversion functionality through a Flask web server. The API acts as a bridge between the frontend and the ICE (Internet Communications Engine) server running on port 10000.
+
+## Base URL
+
+All API endpoints are relative to your Flask server URL:
+
+```
+http://localhost:5000/api
+```
+
+The base URL can be configured through environment variables:
+- `HOST`: Server host (default: `localhost`)
+- `PORT`: Server port (default: `5000`)
+
+<Note>
+  The Flask server must be connected to the ICE server on port 10000 for the API to function properly.
+</Note>
+
+## Authentication
+
+The API currently does not require authentication. All endpoints are publicly accessible.
+
+## Available Endpoints
+
+The API provides three main endpoints:
+
+<CardGroup cols={3}>
+  <Card title="Convert Units" icon="repeat" href="/api/convert">
+    Convert values between different units
+  </Card>
+  <Card title="Get Units" icon="list" href="/api/get-units">
+    Retrieve available units for a category
+  </Card>
+  <Card title="Status" icon="signal" href="/api/status">
+    Check ICE server connection status
+  </Card>
+</CardGroup>
+
+## Supported Categories
+
+The API supports conversion for four unit categories:
+
+- **temperatura**: Temperature units (Celsius, Fahrenheit, Kelvin)
+- **longitud**: Length/distance units (meters, kilometers, miles, feet)
+- **peso**: Weight/mass units (kilograms, pounds, grams)
+- **velocidad**: Speed/velocity units (km/h, mph, m/s)
+
+## Error Handling
+
+The API uses standard HTTP status codes and returns errors in JSON format:
+
+### HTTP Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| `200` | Request successful |
+| `400` | Bad request (invalid parameters, category, or unit) |
+| `404` | Route not found |
+| `500` | Internal server error |
+| `503` | Service unavailable (ICE server disconnected) |
+
+### Error Response Format
+
+All errors follow this consistent structure:
+
+```json
+{
+  "error": "Description of what went wrong"
+}
+```
+
+### Common Error Types
+
+<Accordion title="Unidad Inválida (Invalid Unit)">
+  Returned when an invalid unit is specified for a category.
+  
+  **Status Code**: `400`
+  
+  **Example**:
+  ```json
+  {
+    "error": "Unidad inválida: yards not supported for longitud"
+  }
+  ```
+</Accordion>
+
+<Accordion title="Categoría Inválida (Invalid Category)">
+  Returned when an unsupported category is requested.
+  
+  **Status Code**: `400`
+  
+  **Example**:
+  ```json
+  {
+    "error": "Categoría no reconocida: volumen"
+  }
+  ```
+</Accordion>
+
+<Accordion title="Servidor Desconectado (Server Disconnected)">
+  Returned when the ICE server is not connected.
+  
+  **Status Code**: `503`
+  
+  **Example**:
+  ```json
+  {
+    "error": "Servidor ICE desconectado"
+  }
+  ```
+</Accordion>
+
+<Accordion title="Valor Inválido (Invalid Value)">
+  Returned when a non-numeric value is provided.
+  
+  **Status Code**: `400`
+  
+  **Example**:
+  ```json
+  {
+    "error": "Valor inválido: could not convert string to float"
+  }
+  ```
+</Accordion>
+
+## Rate Limits
+
+There are currently no rate limits implemented on the API.
+
+<Warning>
+  This API is designed for development and testing. Consider implementing authentication and rate limiting for production deployments.
+</Warning>
+
+## CORS Policy
+
+The Flask server serves both the API and frontend from the same origin, so CORS is not configured. If you need to access the API from a different origin, you'll need to configure CORS headers.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Convert Units" icon="arrow-right" href="/api/convert">
+    Learn how to perform unit conversions
+  </Card>
+  <Card title="Get Available Units" icon="arrow-right" href="/api/get-units">
+    Discover which units are available
+  </Card>
+</CardGroup>

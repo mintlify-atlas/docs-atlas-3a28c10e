@@ -1,0 +1,257 @@
+---
+title: Regenerating ICE Stubs
+description: Learn how to regenerate ICE stub files when you modify the Conversor.ice interface definition
+icon: arrows-rotate
+---
+
+## Overview
+
+The project uses ZeroC Ice middleware to enable remote procedure calls between the backend server and clients. The ICE stubs are Python files automatically generated from the `Conversor.ice` interface definition file.
+
+<Note>
+You only need to regenerate stubs when you modify the `backend/Conversor.ice` file. For normal development work, the existing stubs work without changes.
+</Note>
+
+## Understanding ICE Stubs
+
+The stubs are located in the `Conversor/` directory and include:
+
+- `ConversorUnidades.py` - Main interface implementation
+- `UnidadInvalidaException.py` - Exception handling
+- `ConversorUnidades_forward.py` - Forward declarations
+- `__init__.py` - Package initialization
+
+These files are generated from `backend/Conversor.ice`, which defines:
+
+```ice
+module Conversor
+{
+    exception UnidadInvalidaException
+    {
+        string mensaje;
+    };
+
+    interface ConversorUnidades
+    {
+        double convertirTemperatura(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        double convertirLongitud(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        double convertirPeso(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        double convertirVelocidad(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+
+        string unidadesDisponibles(string categoria)
+            throws UnidadInvalidaException;
+    };
+};
+```
+
+## When to Regenerate Stubs
+
+Regenerate the ICE stubs whenever you:
+
+<CardGroup cols={2}>
+  <Card title="Add New Methods" icon="plus">
+    Adding new conversion methods or utility functions to the interface
+  </Card>
+  <Card title="Modify Parameters" icon="sliders">
+    Changing parameter types or adding new parameters to existing methods
+  </Card>
+  <Card title="Add Exceptions" icon="triangle-exclamation">
+    Defining new exception types for error handling
+  </Card>
+  <Card title="Change Return Types" icon="arrow-right-arrow-left">
+    Modifying the return type of any method
+  </Card>
+</CardGroup>
+
+## Regenerating Stubs
+
+<Steps>
+  <Step title="Activate your virtual environment">
+    Make sure your virtual environment is active before running the slice compiler.
+
+    <Tabs>
+      <Tab title="macOS/Linux">
+        ```bash
+        source .venv/bin/activate
+        ```
+      </Tab>
+      <Tab title="Windows PowerShell">
+        ```powershell
+        .\.venv\Scripts\Activate.ps1
+        ```
+      </Tab>
+      <Tab title="Windows CMD">
+        ```bat
+        .venv\Scripts\activate.bat
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Run the slice2py compiler">
+    From the project root directory, run:
+
+    <CodeGroup>
+      ```bash macOS/Linux
+      slice2py backend/Conversor.ice
+      ```
+
+      ```powershell Windows PowerShell
+      slice2py backend/Conversor.ice
+      ```
+
+      ```bat Windows CMD
+      slice2py backend\Conversor.ice
+      ```
+    </CodeGroup>
+
+    This command reads `backend/Conversor.ice` and regenerates all Python stub files in the `Conversor/` directory.
+  </Step>
+
+  <Step title="Verify the generated files">
+    Check that the `Conversor/` directory contains the updated stub files:
+
+    ```bash
+    ls -l Conversor/
+    ```
+
+    You should see:
+    - `ConversorUnidades.py` (main interface)
+    - `UnidadInvalidaException.py` (exception class)
+    - `ConversorUnidades_forward.py` (forward declarations)
+    - `__init__.py` (package init)
+  </Step>
+
+  <Step title="Test the changes">
+    Restart your servers and verify that the changes work correctly:
+
+    ```bash
+    # Terminal 1: ICE Server
+    cd backend
+    python3 server.py
+
+    # Terminal 2: Web Server
+    cd backend
+    python3 web_server.py
+    ```
+
+    Or use the automated run script:
+    ```bash
+    ./run.sh  # macOS/Linux
+    # or
+    powershell -ExecutionPolicy Bypass -File run.ps1  # Windows
+    ```
+  </Step>
+</Steps>
+
+## Example: Adding a New Method
+
+Let's say you want to add volume conversion. Here's the workflow:
+
+<Steps>
+  <Step title="Edit Conversor.ice">
+    Add the new method to `backend/Conversor.ice`:
+
+    ```ice
+    interface ConversorUnidades
+    {
+        // ... existing methods ...
+
+        double convertirVolumen(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+    };
+    ```
+  </Step>
+
+  <Step title="Regenerate stubs">
+    ```bash
+    slice2py backend/Conversor.ice
+    ```
+  </Step>
+
+  <Step title="Implement in server.py">
+    Add the implementation in `backend/server.py`:
+
+    ```python
+    def convertirVolumen(self, valor, desde, hasta, current=None):
+        # Implementation here
+        pass
+    ```
+  </Step>
+
+  <Step title="Test the new endpoint">
+    Restart servers and test the new functionality.
+  </Step>
+</Steps>
+
+<Warning>
+Always regenerate stubs **before** implementing the new methods in your server code. The server imports these stubs, so they must be up-to-date.
+</Warning>
+
+## Troubleshooting
+
+<Accordion title="slice2py command not found">
+  The `slice2py` command comes from the `zeroc-ice` package. Make sure it's installed:
+
+  ```bash
+  pip install zeroc-ice
+  ```
+
+  If still not found, verify your virtual environment is activated:
+  ```bash
+  which slice2py  # macOS/Linux
+  where slice2py  # Windows
+  ```
+</Accordion>
+
+<Accordion title="Import errors after regenerating">
+  If you see import errors after regenerating stubs:
+
+  1. Restart your Python processes (server.py, web_server.py)
+  2. Clear Python cache: `find . -type d -name __pycache__ -exec rm -rf {} +`
+  3. Verify the `Conversor/__init__.py` file exists
+</Accordion>
+
+<Accordion title="Syntax errors in Conversor.ice">
+  If slice2py reports errors:
+
+  - Check for missing semicolons
+  - Verify all braces are balanced
+  - Ensure all methods have return types
+  - Confirm exception declarations are properly formatted
+
+  Example of valid ICE syntax:
+  ```ice
+  exception MyException
+  {
+      string mensaje;
+  };
+
+  interface MyInterface
+  {
+      double myMethod(double param) throws MyException;
+  };
+  ```
+</Accordion>
+
+## Related Resources
+
+<CardGroup cols={2}>
+  <Card title="ZeroC Ice Documentation" icon="book" href="https://doc.zeroc.com/ice/3.7/">
+    Official Ice documentation for Python
+  </Card>
+  <Card title="Slice Language Reference" icon="code" href="https://doc.zeroc.com/ice/3.7/the-slice-language">
+    Complete Slice language specification
+  </Card>
+</CardGroup>
+
+<Tip>
+Commit your `Conversor.ice` file to version control, but consider adding the `Conversor/` directory to `.gitignore` if you want developers to generate their own stubs locally.
+</Tip>

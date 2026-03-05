@@ -1,0 +1,76 @@
+---
+title: Introduction
+description: A distributed unit converter with ZeroC Ice RPC backend and interactive web frontend
+---
+
+# Welcome to Conversor de Unidades Remoto
+
+Conversor de Unidades Remoto is a full-stack web application that provides fast and accurate unit conversions across multiple categories. Built with a distributed architecture using ZeroC Ice middleware and a Flask web server, it offers a modern, responsive interface for converting temperature, length, weight, and velocity measurements.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multiple Conversion Categories" icon="arrows-rotate">
+    Convert between units in temperature, length, weight, and velocity with precision
+  </Card>
+  <Card title="Real-Time Conversion" icon="bolt">
+    See conversion results instantly as you type, with automatic recalculation
+  </Card>
+  <Card title="Conversion History" icon="clock-rotate-left">
+    Track your recent conversions and quickly reload previous calculations
+  </Card>
+  <Card title="Theme Customization" icon="palette">
+    Choose between light, dark, or auto themes that match your system preferences
+  </Card>
+  <Card title="Remote Access" icon="globe">
+    Expose your local instance to the internet using ngrok tunneling
+  </Card>
+  <Card title="Cross-Platform" icon="laptop-mobile">
+    Run on Windows, macOS, or Linux with consistent behavior across platforms
+  </Card>
+</CardGroup>
+
+## Supported Conversions
+
+The application supports four main categories of unit conversions:
+
+- **Temperature**: Celsius, Fahrenheit, Kelvin
+- **Length**: Meters, kilometers, miles, feet
+- **Weight**: Kilograms, pounds, grams
+- **Velocity**: km/h, mph, m/s
+
+## Architecture Overview
+
+The application uses a distributed client-server architecture:
+
+- **ICE Server** (port 10000): Handles conversion logic using ZeroC Ice middleware
+- **Flask Web Server** (port 5000): Serves the frontend and provides REST API endpoints
+- **Frontend**: Modern vanilla JavaScript interface with real-time conversion and theme support
+
+<Note>
+The ICE (Internet Communications Engine) middleware enables efficient remote procedure calls between the web server and the conversion service, allowing for scalable distributed deployments.
+</Note>
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running in 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed installation instructions
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the REST API endpoints
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture/overview">
+    Learn about the system design
+  </Card>
+</CardGroup>
+
+## Use Cases
+
+- **Educational**: Learn about unit conversions and distributed systems architecture
+- **Development**: Example of ZeroC Ice middleware integration with Flask
+- **Personal**: Quick and easy unit conversions with history tracking
+- **Remote Access**: Share your converter instance with others via ngrok

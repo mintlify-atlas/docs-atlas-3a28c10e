@@ -1,0 +1,408 @@
+---
+title: Themes and Settings
+description: Customize your experience with theme modes and system integration
+icon: "palette"
+---
+
+The Unit Converter includes a sophisticated theming system that adapts to your preferences and system settings.
+
+## Theme Modes
+
+The app supports three theme modes accessible from the dropdown in the top-right corner:
+
+<CardGroup cols={3}>
+  <Card title="Auto Mode" icon="circle-half-stroke">
+    Automatically follows your system preference
+  </Card>
+  <Card title="Dark Mode" icon="moon">
+    Always use the dark theme
+  </Card>
+  <Card title="Light Mode" icon="sun">
+    Always use the light theme
+  </Card>
+</CardGroup>
+
+### Accessing Theme Settings
+
+<Steps>
+  <Step title="Locate the Theme Control">
+    Find the theme selector in the header at the top-right corner. It displays a half-circle icon (⚫⚪) next to a dropdown.
+  </Step>
+
+  <Step title="Open the Dropdown">
+    Click the dropdown to see three options:
+    - **AUTO** - System preference
+    - **DARK** - Dark theme
+    - **LIGHT** - Light theme
+  </Step>
+
+  <Step title="Select Your Preference">
+    Click any option. The theme changes immediately and your choice is saved to browser storage.
+  </Step>
+</Steps>
+
+```html
+<!-- From index.html:26-33 -->
+<div class="theme-control">
+    <i class="bi bi-circle-half"></i>
+    <select id="theme-mode" aria-label="Modo de tema">
+        <option value="auto">Auto</option>
+        <option value="dark">Dark</option>
+        <option value="light">Light</option>
+    </select>
+</div>
+```
+
+---
+
+## Auto Mode (System Preference)
+
+When set to **Auto**, the app detects your operating system's theme preference:
+
+<Tabs>
+  <Tab title="How It Works">
+    The app uses the CSS media query `prefers-color-scheme` to detect your system setting:
+
+    ```javascript
+    // From app.js:20-24
+    const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function resolveTheme(mode) {
+        if (mode === "auto") return systemThemeQuery.matches ? "dark" : "light";
+        return mode;
+    }
+    ```
+
+    <Note>
+      The system preference is checked when the page loads and whenever your system theme changes.
+    </Note>
+  </Tab>
+
+  <Tab title="System Integration">
+    Auto mode responds dynamically to system changes:
+
+    ```javascript
+    // From app.js:46-49
+    systemThemeQuery.addEventListener("change", () => {
+        const currentMode = localStorage.getItem(THEME_KEY) || "auto";
+        if (currentMode === "auto") applyTheme("auto");
+    });
+    ```
+
+    **Example:** If you change from light to dark mode in your macOS/Windows settings while the app is open, the theme updates automatically.
+  </Tab>
+
+  <Tab title="Default Behavior">
+    Auto is the default mode when you first visit the app:
+
+    ```javascript
+    // From app.js:36
+    const savedMode = localStorage.getItem(THEME_KEY) || "auto";
+    ```
+
+    If no preference has been saved, the app defaults to Auto mode.
+  </Tab>
+</Tabs>
+
+---
+
+## Dark Mode Theme
+
+Dark mode uses a dark color palette optimized for low-light environments:
+
+### Color Palette
+
+```css
+/* From style.css:3-15 */
+:root {
+    --bg:      #0f0f0f;   /* Nearly black background */
+    --surface: #1a1a1a;   /* Card/device background */
+    --panel:   #141414;   /* Input fields, panels */
+    --border:  #2a2a2a;   /* Subtle borders */
+    --accent:  #e8ff47;   /* Bright yellow-green accent */
+    --accent2: #47ffd4;   /* Cyan for secondary elements */
+    --text:    #f0f0f0;   /* Off-white text */
+    --muted:   #555;      /* Dimmed secondary text */
+    --danger:  #ff4747;   /* Red for errors */
+}
+```
+
+### Visual Characteristics
+
+<CardGroup cols={2}>
+  <Card title="High Contrast" icon="circle-half-stroke">
+    Bright accent colors (#e8ff47) against dark backgrounds provide excellent readability
+  </Card>
+  
+  <Card title="Reduced Eye Strain" icon="eye">
+    Dark background (#0f0f0f) is easier on eyes in low-light conditions
+  </Card>
+  
+  <Card title="Subtle Borders" icon="border-all">
+    Muted borders (#2a2a2a) separate elements without harsh lines
+  </Card>
+  
+  <Card title="Grain Overlay" icon="grain">
+    40% opacity texture adds visual interest (style.css:49)
+  </Card>
+</CardGroup>
+
+<Note>
+The active tab uses inverted colors in dark mode: the bright accent background gets black text for optimal contrast (style.css:176-178).
+</Note>
+
+---
+
+## Light Mode Theme
+
+Light mode provides a clean, professional appearance for bright environments:
+
+### Color Palette
+
+```css
+/* From style.css:17-28 */
+html[data-theme="light"] {
+    --bg:      #f2f4f8;   /* Light gray-blue background */
+    --surface: #ffffff;   /* Pure white cards */
+    --panel:   #f7f8fb;   /* Light input fields */
+    --border:  #d9deeb;   /* Visible but subtle borders */
+    --accent:  #3558ff;   /* Vibrant blue accent */
+    --accent2: #128a70;   /* Teal for secondary elements */
+    --text:    #10131a;   /* Nearly black text */
+    --muted:   #5f6777;   /* Gray secondary text */
+    --danger:  #d93025;   /* Darker red for errors */
+}
+```
+
+### Visual Characteristics
+
+<CardGroup cols={2}>
+  <Card title="Professional Aesthetic" icon="briefcase">
+    Clean white surfaces (#ffffff) with blue accents (#3558ff) create a business-friendly look
+  </Card>
+  
+  <Card title="Better in Bright Light" icon="sun-bright">
+    Light background reduces glare on bright screens and outdoor use
+  </Card>
+  
+  <Card title="Clear Hierarchy" icon="layer-group">
+    Stronger borders (#d9deeb) clearly define sections and controls
+  </Card>
+  
+  <Card title="Softer Grain" icon="sparkles">
+    14% opacity texture is subtle and non-distracting (style.css:52-54)
+  </Card>
+</CardGroup>
+
+---
+
+## Persistent Storage
+
+Your theme preference is automatically saved to the browser's localStorage:
+
+### How Storage Works
+
+```javascript
+// From app.js:19
+const THEME_KEY = "themeMode";
+
+// Saving the preference
+localStorage.setItem(THEME_KEY, selectedMode);
+
+// Loading on page load
+const savedMode = localStorage.getItem(THEME_KEY) || "auto";
+```
+
+<Note>From app.js:36-42</Note>
+
+### What This Means
+
+<CardGroup cols={2}>
+  <Card title="Persistent Across Sessions" icon="clock-rotate-left">
+    Your theme choice is remembered when you close and reopen the app
+  </Card>
+  
+  <Card title="Per-Browser Storage" icon="browser">
+    Settings are saved separately in each browser you use
+  </Card>
+  
+  <Card title="Per-Domain" icon="globe">
+    Theme settings are specific to the domain where the app is hosted
+  </Card>
+  
+  <Card title="No Account Required" icon="user-slash">
+    Preferences are stored locally without needing a user account
+  </Card>
+</CardGroup>
+
+<Warning>
+Clearing your browser data or localStorage will reset the theme to Auto mode.
+</Warning>
+
+---
+
+## Flash-Free Loading
+
+The app implements a **flash-of-incorrect-theme prevention** system:
+
+### Inline Theme Script
+
+A blocking script in the `<head>` applies the theme before the page renders:
+
+```html
+<!-- From index.html:7-14 -->
+<script>
+    (function () {
+        const saved = localStorage.getItem('themeMode') || 'auto';
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const resolved = saved === 'auto' ? (prefersDark ? 'dark' : 'light') : saved;
+        document.documentElement.setAttribute('data-theme', resolved);
+    })();
+</script>
+```
+
+### Why This Matters
+
+<Steps>
+  <Step title="Without Prevention">
+    Without this script, users would briefly see the default dark theme before JavaScript loads and applies their preference.
+  </Step>
+
+  <Step title="Inline Execution">
+    The inline script runs **immediately** as the HTML is parsed, before any CSS or body content loads.
+  </Step>
+
+  <Step title="Seamless Experience">
+    Users see their preferred theme from the very first frame, with no flashing or theme switching.
+  </Step>
+</Steps>
+
+<Tip>
+This technique is recommended by modern web development best practices for theme-aware applications.
+</Tip>
+
+---
+
+## Theme Application Logic
+
+### CSS Data Attribute
+
+Themes are applied via a `data-theme` attribute on the root `<html>` element:
+
+```javascript
+// From app.js:27-30
+function applyTheme(mode) {
+    const resolvedTheme = resolveTheme(mode);
+    document.documentElement.setAttribute("data-theme", resolvedTheme);
+}
+```
+
+### CSS Variable Switching
+
+The CSS uses this attribute to switch color palettes:
+
+```css
+/* Default (dark) colors */
+:root {
+    --accent: #e8ff47;
+    --bg: #0f0f0f;
+    /* ... */
+}
+
+/* Light mode overrides */
+html[data-theme="light"] {
+    --accent: #3558ff;
+    --bg: #f2f4f8;
+    /* ... */
+}
+```
+
+All UI elements reference these CSS variables, so changing the `data-theme` attribute instantly updates the entire interface.
+
+---
+
+## Initialization Process
+
+The theme system initializes when the page loads:
+
+```javascript
+// From app.js:32-50
+function initThemeMode() {
+    const themeSelect = document.getElementById("theme-mode");
+    if (!themeSelect) return;
+
+    // 1. Load saved preference
+    const savedMode = localStorage.getItem(THEME_KEY) || "auto";
+    themeSelect.value = savedMode;
+    applyTheme(savedMode);
+
+    // 2. Listen for manual changes
+    themeSelect.addEventListener("change", () => {
+        const selectedMode = themeSelect.value;
+        localStorage.setItem(THEME_KEY, selectedMode);
+        applyTheme(selectedMode);
+    });
+
+    // 3. Listen for system theme changes
+    systemThemeQuery.addEventListener("change", () => {
+        const currentMode = localStorage.getItem(THEME_KEY) || "auto";
+        if (currentMode === "auto") applyTheme("auto");
+    });
+}
+
+// Called at the bottom of app.js:234
+initThemeMode();
+```
+
+<Note>
+The initialization happens before category tabs are populated, ensuring the UI matches your theme preference from the start.
+</Note>
+
+---
+
+## Accessibility Features
+
+### Semantic HTML
+
+```html
+<select id="theme-mode" aria-label="Modo de tema">
+```
+
+The theme selector includes an `aria-label` for screen readers.
+
+### Color Contrast
+
+Both themes maintain WCAG accessibility standards:
+
+<CardGroup cols={2}>
+  <Card title="Dark Mode Contrast" icon="moon">
+    Light text (#f0f0f0) on dark background (#0f0f0f) provides excellent contrast ratio
+  </Card>
+  
+  <Card title="Light Mode Contrast" icon="sun">
+    Dark text (#10131a) on light background (#ffffff) ensures readability
+  </Card>
+</CardGroup>
+
+### Visual Indicators
+
+The active theme is always visible:
+- The dropdown shows the current selection (AUTO, DARK, or LIGHT)
+- The half-circle icon provides a visual cue for theme-related settings
+
+---
+
+## Theme Comparison
+
+| Feature | Dark Mode | Light Mode |
+|---------|-----------|------------|
+| **Background** | #0f0f0f (nearly black) | #f2f4f8 (light gray-blue) |
+| **Accent Color** | #e8ff47 (yellow-green) | #3558ff (vibrant blue) |
+| **Text Color** | #f0f0f0 (off-white) | #10131a (nearly black) |
+| **Best For** | Low light, evening use | Bright environments, daytime |
+| **Grain Opacity** | 40% | 14% |
+| **Button Text** | Black on accent | White on accent |
+
+<Tip>
+Try switching between themes to see which works best for your environment. The Auto mode will handle most scenarios intelligently.
+</Tip>

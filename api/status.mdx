@@ -1,0 +1,318 @@
+---
+title: 'GET /api/status'
+description: 'Check the ICE server connection status'
+---
+
+## Endpoint
+
+```
+GET /api/status
+```
+
+Returns the current connection status between the Flask web server and the ICE server. This endpoint is useful for health checks and monitoring.
+
+## Request
+
+No parameters required. This is a simple GET request.
+
+### Request Examples
+
+<CodeGroup>
+```bash cURL
+curl http://localhost:5000/api/status
+```
+
+```javascript JavaScript (Fetch)
+const response = await fetch('/api/status');
+const data = await response.json();
+
+if (data.connected) {
+    console.log(`Connected to ${data.servidor}`);
+} else {
+    console.log('ICE server is disconnected');
+}
+```
+
+```python Python (Requests)
+import requests
+
+response = requests.get('http://localhost:5000/api/status')
+data = response.json()
+
+if data['connected']:
+    print(f"Connected to {data['servidor']}")
+else:
+    print("ICE server is disconnected")
+```
+
+```javascript JavaScript (Health Check Polling)
+// Poll status every 30 seconds
+setInterval(async () => {
+    const response = await fetch('/api/status');
+    const data = await response.json();
+    
+    if (!data.connected) {
+        console.warn('Lost connection to ICE server!');
+        // Update UI to show disconnected state
+    }
+}, 30000);
+```
+</CodeGroup>
+
+## Response
+
+### Success Response (200 OK)
+
+The endpoint always returns a 200 OK status, even when the ICE server is disconnected. Check the `connected` field to determine the actual connection state.
+
+<ResponseField name="connected" type="boolean">
+  Indicates whether the Flask server has an active connection to the ICE server.
+  
+  - `true`: ICE server is connected and API operations will work
+  - `false`: ICE server is disconnected and API operations will fail with 503 errors
+</ResponseField>
+
+<ResponseField name="servidor" type="string">
+  The address and port of the ICE server that the Flask app attempts to connect to.
+  
+  Default value: `"localhost:10000"`
+</ResponseField>
+
+### Response Examples
+
+<CodeGroup>
+```json Connected
+{
+  "connected": true,
+  "servidor": "localhost:10000"
+}
+```
+
+```json Disconnected
+{
+  "connected": false,
+  "servidor": "localhost:10000"
+}
+```
+</CodeGroup>
+
+## Implementation Details
+
+<Note>
+  The connection status is determined by checking if the `cliente.proxy` object is initialized (web_server.py:161). The proxy is set during the initial connection attempt when the Flask server starts.
+</Note>
+
+### Connection Flow
+
+1. **Server Startup**: When the Flask server starts (web_server.py:191), it attempts to connect to the ICE server:
+   ```python
+   if cliente.connect():
+       print(" Conectado al servidor ICE en puerto 10000")
+   else:
+       print("  No se pudo conectar al servidor ICE")
+   ```
+
+2. **Status Check**: The `/api/status` endpoint checks if `cliente.proxy` is not `None`:
+   ```python
+   connected = cliente.proxy is not None
+   ```
+
+3. **Result**: Returns the connection state and server address
+
+## Use Cases
+
+### Health Check Endpoint
+
+Use this endpoint for monitoring and alerting:
+
+```javascript
+async function checkHealth() {
+    try {
+        const response = await fetch('/api/status', {
+            timeout: 5000  // 5 second timeout
+        });
+        
+        if (!response.ok) {
+            return { healthy: false, reason: 'HTTP error' };
+        }
+        
+        const data = await response.json();
+        return {
+            healthy: data.connected,
+            reason: data.connected ? 'OK' : 'ICE server disconnected'
+        };
+    } catch (error) {
+        return { healthy: false, reason: 'Network error' };
+    }
+}
+```
+
+### UI Connection Indicator
+
+Display connection status in your frontend:
+
+```javascript
+async function updateConnectionIndicator() {
+    const response = await fetch('/api/status');
+    const data = await response.json();
+    
+    const indicator = document.getElementById('connection-status');
+    if (data.connected) {
+        indicator.className = 'status-connected';
+        indicator.textContent = '● Connected';
+    } else {
+        indicator.className = 'status-disconnected';
+        indicator.textContent = '● Disconnected';
+    }
+}
+
+// Update every 10 seconds
+setInterval(updateConnectionIndicator, 10000);
+```
+
+### Graceful Error Handling
+
+Check status before attempting conversions:
+
+```javascript
+async function convertWithStatusCheck(categoria, valor, desde, hasta) {
+    // Check connection first
+    const statusResponse = await fetch('/api/status');
+    const status = await statusResponse.json();
+    
+    if (!status.connected) {
+        throw new Error('Cannot convert: ICE server is disconnected');
+    }
+    
+    // Proceed with conversion
+    const response = await fetch('/api/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoria, valor, desde, hasta })
+    });
+    
+    return await response.json();
+}
+```
+
+### Container Orchestration Health Checks
+
+Use in Docker Compose or Kubernetes:
+
+```yaml docker-compose.yml
+services:
+  flask-api:
+    image: conversor-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+```
+
+```yaml kubernetes-deployment.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: conversor-api
+spec:
+  containers:
+  - name: flask
+    image: conversor-api
+    livenessProbe:
+      httpGet:
+        path: /api/status
+        port: 5000
+      initialDelaySeconds: 30
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /api/status
+        port: 5000
+      initialDelaySeconds: 5
+      periodSeconds: 5
+```
+
+## Troubleshooting
+
+<Warning>
+  If the status shows `connected: false`, the conversion and units endpoints will return 503 errors. Ensure the ICE server is running before starting the Flask server.
+</Warning>
+
+### Starting the ICE Server
+
+If the status shows disconnected:
+
+```bash
+# Start the ICE server
+python3 server.py
+
+# In another terminal, start the Flask server
+python3 web_server.py
+```
+
+### Reconnection Behavior
+
+<Note>
+  The Flask server only attempts to connect to the ICE server once at startup. If the connection fails or is lost, you must restart the Flask server to reconnect.
+</Note>
+
+**Planned Future Enhancement**: Implement automatic reconnection logic:
+
+```python
+# Future implementation idea
+@app.before_request
+def ensure_connection():
+    if not cliente.proxy:
+        cliente.connect()
+```
+
+### Common Issues
+
+<Accordion title="Connection shows false immediately after startup">
+  **Cause**: The ICE server is not running or is not listening on port 10000.
+  
+  **Solution**:
+  1. Start the ICE server with `python3 server.py`
+  2. Verify it's running with `lsof -i :10000` or `netstat -an | grep 10000`
+  3. Restart the Flask server
+</Accordion>
+
+<Accordion title="Status endpoint returns 200 but conversions fail">
+  **Cause**: The proxy was initialized but the connection was lost.
+  
+  **Solution**: Restart both servers:
+  ```bash
+  # Stop both servers
+  # Start ICE server first
+  python3 server.py
+  # Then start Flask server
+  python3 web_server.py
+  ```
+</Accordion>
+
+<Accordion title="Port 10000 is already in use">
+  **Cause**: Another instance of the ICE server is running or the port is occupied.
+  
+  **Solution**:
+  ```bash
+  # Find the process
+  lsof -i :10000
+  # Kill it
+  kill -9 <PID>
+  # Restart the ICE server
+  python3 server.py
+  ```
+</Accordion>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Learn about error handling when disconnected
+  </Card>
+  <Card title="Convert Units" icon="repeat" href="/api/convert">
+    Requires active connection to ICE server
+  </Card>
+</CardGroup>

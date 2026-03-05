@@ -1,0 +1,247 @@
+---
+title: 'GET /api/unidades/<categoria>'
+description: 'Retrieve available units for a specific category'
+---
+
+## Endpoint
+
+```
+GET /api/unidades/<categoria>
+```
+
+Retrieves a comma-separated list of available units for a specific conversion category. This endpoint queries the ICE server for the units it supports.
+
+## Request
+
+### Path Parameters
+
+<ParamField path="categoria" type="string" required>
+  The category for which to retrieve available units. Valid categories are:
+  
+  - `temperatura` - Temperature units
+  - `longitud` - Length/distance units
+  - `peso` - Weight/mass units  
+  - `velocidad` - Speed/velocity units
+  
+  **Note**: The category is case-sensitive in the URL path
+</ParamField>
+
+### Request Examples
+
+<CodeGroup>
+```bash cURL - Temperature
+curl http://localhost:5000/api/unidades/temperatura
+```
+
+```bash cURL - Length
+curl http://localhost:5000/api/unidades/longitud
+```
+
+```javascript JavaScript (Fetch)
+const response = await fetch('/api/unidades/temperatura');
+const data = await response.json();
+console.log(data.unidades); // "celsius, fahrenheit, kelvin"
+```
+
+```python Python (Requests)
+import requests
+
+response = requests.get('http://localhost:5000/api/unidades/temperatura')
+data = response.json()
+print(data['unidades'])  # "celsius, fahrenheit, kelvin"
+```
+</CodeGroup>
+
+## Response
+
+### Success Response (200 OK)
+
+<ResponseField name="unidades" type="string">
+  A comma-separated string containing all available units for the specified category.
+  
+  The format is: `"unit1, unit2, unit3, ..."`
+</ResponseField>
+
+#### Examples by Category
+
+<CodeGroup>
+```json Temperature
+{
+  "unidades": "celsius, fahrenheit, kelvin"
+}
+```
+
+```json Length
+{
+  "unidades": "m, km, mi, ft"
+}
+```
+
+```json Weight
+{
+  "unidades": "kg, lb, g"
+}
+```
+
+```json Speed
+{
+  "unidades": "kmh, mph, ms"
+}
+```
+</CodeGroup>
+
+### Error Responses
+
+<Accordion title="400 Bad Request - Invalid Category">
+  Returned when an unsupported or invalid category is requested.
+  
+  ```json
+  {
+    "error": "Categoría inválida: volumen not supported"
+  }
+  ```
+  
+  This error originates from the ICE server's `UnidadInvalidaException`.
+</Accordion>
+
+<Accordion title="503 Service Unavailable - Server Disconnected">
+  Returned when the Flask server cannot communicate with the ICE server.
+  
+  ```json
+  {
+    "error": "Servidor ICE desconectado"
+  }
+  ```
+  
+  **Solution**: Start the ICE server with `python3 server.py`
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+  Returned when an unexpected error occurs.
+  
+  ```json
+  {
+    "error": "Error: [error details]"
+  }
+  ```
+</Accordion>
+
+## Frontend Usage
+
+While the frontend currently uses hardcoded unit lists (app.js:2-7), this endpoint can be used to dynamically retrieve available units from the server:
+
+```javascript
+// Current frontend approach (hardcoded)
+const units = {
+    temperatura: ["celsius", "fahrenheit", "kelvin"],
+    longitud: ["m", "km", "mi", "ft"],
+    peso: ["kg", "lb", "g"],
+    velocidad: ["kmh", "mph", "ms"],
+};
+
+// Dynamic approach using the API
+async function fetchUnits(categoria) {
+    const response = await fetch(`/api/unidades/${categoria}`);
+    const data = await response.json();
+    // Convert "unit1, unit2, unit3" to ["unit1", "unit2", "unit3"]
+    return data.unidades.split(', ');
+}
+```
+
+<Note>
+  The API returns units as a comma-separated string. You'll need to split it into an array for most frontend use cases.
+</Note>
+
+## Unit Labels and Display Names
+
+The API returns internal unit identifiers (e.g., `kmh`, `mph`). The frontend maintains a separate mapping for user-friendly display labels (app.js:10-15):
+
+```javascript
+const labels = {
+    temperatura: { celsius: "°C", fahrenheit: "°F", kelvin: "K" },
+    longitud: { m: "m", km: "km", mi: "mi", ft: "ft" },
+    peso: { kg: "kg", lb: "lb", g: "g" },
+    velocidad: { kmh: "km/h", mph: "mph", ms: "m/s" },
+};
+```
+
+## Implementation Details
+
+<Note>
+  This endpoint calls the ICE server's `unidadesDisponibles()` method (web_server.py:149), which returns the available units for the requested category.
+</Note>
+
+## Use Cases
+
+### Dynamic Unit Discovery
+
+Use this endpoint to build dynamic user interfaces that adapt to available units:
+
+```javascript
+async function populateUnitSelector(categoria) {
+    try {
+        const response = await fetch(`/api/unidades/${categoria}`);
+        const data = await response.json();
+        const units = data.unidades.split(', ');
+        
+        const selectElement = document.getElementById('unit-select');
+        selectElement.innerHTML = units.map(unit => 
+            `<option value="${unit}">${unit}</option>`
+        ).join('');
+    } catch (error) {
+        console.error('Failed to load units:', error);
+    }
+}
+```
+
+### Validation
+
+Verify that user input contains valid units before submitting a conversion request:
+
+```javascript
+async function isValidUnit(categoria, unit) {
+    const response = await fetch(`/api/unidades/${categoria}`);
+    const data = await response.json();
+    const validUnits = data.unidades.split(', ');
+    return validUnits.includes(unit.toLowerCase());
+}
+```
+
+### API Documentation Generation
+
+Query all categories to generate comprehensive documentation:
+
+```javascript
+const categories = ['temperatura', 'longitud', 'peso', 'velocidad'];
+
+for (const cat of categories) {
+    const response = await fetch(`/api/unidades/${cat}`);
+    const data = await response.json();
+    console.log(`${cat}: ${data.unidades}`);
+}
+```
+
+## Response Format Considerations
+
+<Warning>
+  The response is a comma-separated string with spaces after commas (e.g., `"celsius, fahrenheit"`). When splitting, account for the space:
+  
+  ```javascript
+  // Correct
+  data.unidades.split(', ')
+  
+  // Incorrect - will leave spaces in unit names
+  data.unidades.split(',')
+  ```
+</Warning>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Convert Units" icon="repeat" href="/api/convert">
+    Use the units to perform conversions
+  </Card>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Learn about all available categories
+  </Card>
+</CardGroup>

@@ -1,0 +1,788 @@
+---
+title: Installation
+description: Detailed setup instructions for Python environment, dependencies, and platform-specific configuration
+---
+
+This guide covers complete installation and configuration of the Conversor de Unidades Remoto, including manual server control, environment variables, and troubleshooting for both macOS/Linux and Windows platforms.
+
+## System Requirements
+
+- **Python**: 3.10 or 3.11 (recommended)
+- **pip**: Latest version
+- **Operating System**: macOS, Linux, or Windows 10+
+- **RAM**: 256 MB minimum
+- **Ports**: 10000 (ICE server), 5000 (Flask web server)
+
+<Warning>
+Python 3.12+ may have compatibility issues with `zeroc-ice>=3.7,<3.8`. Stick to Python 3.10 or 3.11 for guaranteed stability.
+</Warning>
+
+## Project Structure
+
+```
+Conversor_Unidades_Remoto-1/
+├── backend/
+│   ├── __init__.py
+│   ├── Conversor.ice          # ICE interface definition
+│   ├── server.py              # ICE RPC server (port 10000)
+│   ├── web_server.py          # Flask web server (port 5000)
+│   └── client.py              # Test client
+├── frontend/
+│   ├── index.html             # Web interface
+│   ├── app.js                 # Frontend logic
+│   └── style.css              # Styling
+├── Conversor/                 # Generated ICE stubs (slice2py)
+│   ├── __init__.py
+│   ├── ConversorUnidades.py
+│   └── UnidadInvalidaException.py
+├── requirements.txt           # Python dependencies
+├── run.sh                     # Automated startup (macOS/Linux)
+├── run.ps1                    # Automated startup (Windows)
+└── SETUP.md                   # Spanish setup guide
+```
+
+## Step-by-Step Installation
+
+<Steps>
+
+<Step title="Clone or download the project">
+
+```bash
+git clone <repository-url>
+cd Conversor_Unidades_Remoto-1
+```
+
+Or download and extract the ZIP file to your desired location.
+
+</Step>
+
+<Step title="Create virtual environment">
+
+Isolate dependencies in a virtual environment:
+
+<CodeGroup>
+
+```bash macOS/Linux
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+```powershell Windows (PowerShell)
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+```bat Windows (CMD)
+py -m venv .venv
+.venv\Scripts\activate.bat
+```
+
+</CodeGroup>
+
+<Note>
+**PowerShell execution policy error?**
+
+Run this command first:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+```
+
+This allows script execution for the current session only without changing system-wide settings.
+</Note>
+
+Your prompt should now show `(.venv)` indicating the virtual environment is active.
+
+</Step>
+
+<Step title="Upgrade pip">
+
+```bash
+python -m pip install --upgrade pip
+```
+
+Ensures you have the latest pip version for dependency resolution.
+
+</Step>
+
+<Step title="Install dependencies">
+
+```bash
+pip install -r requirements.txt
+```
+
+Installs:
+- **Flask** (3.0.x): Web framework for REST API and static file serving
+- **zeroc-ice** (3.7.x): ZeroC Ice middleware for RPC communication
+
+**Installation time**: ~30-60 seconds depending on your connection.
+
+</Step>
+
+</Steps>
+
+## Running the Application
+
+You can run the application using automated scripts or manually control each server.
+
+### Option 1: Automated Startup (Recommended)
+
+Uses `run.sh` (macOS/Linux) or `run.ps1` (Windows) to start both servers with one command.
+
+<Tabs>
+
+<Tab title="macOS/Linux">
+
+**First time setup:**
+
+```bash
+chmod +x run.sh
+```
+
+**Every subsequent run:**
+
+```bash
+./run.sh
+```
+
+**What happens:**
+
+1. Starts ICE server (`backend/server.py`) in background on port 10000
+2. Waits 3 seconds for ICE initialization
+3. Starts Flask server (`backend/web_server.py`) in background on port 5000
+4. Prompts for optional ngrok tunnel
+5. Displays server URLs and waits
+
+**Output:**
+
+```
+🚀 Iniciando Conversor de Unidades...
+
+[1/3] Levantando ICE Server en puerto 10000
+ICE PID: 12345
+[2/3] Levantando Flask Server en puerto 5000
+Flask PID: 12346
+[3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)
+```
+
+Type `n` to skip ngrok:
+
+```
+✅ Servidores activos:
+   - ICE Server: http://localhost:10000
+   - Web App: http://localhost:5000
+Presiona Ctrl+C para detener
+```
+
+**Stopping:**
+
+Press `Ctrl+C`. The script's cleanup handler (`run.sh:19-23`) automatically kills both servers:
+
+```bash
+cleanup() {
+    echo -e "${YELLOW}\n⏹️  Deteniendo servidores...${NC}"
+    kill $ICE_PID $FLASK_PID 2>/dev/null
+    exit 0
+}
+```
+
+</Tab>
+
+<Tab title="Windows">
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run.ps1
+```
+
+**What happens:**
+
+1. Validates `backend/` directory exists
+2. Starts ICE server as background process using `Start-Process`
+3. Waits 3 seconds
+4. Starts Flask server as background process
+5. Prompts for ngrok tunnel
+6. Displays active server information
+
+**Output:**
+
+```
+🚀 Iniciando Conversor de Unidades...
+
+[1/3] Levantando ICE Server en puerto 10000
+ICE PID: 12345
+[2/3] Levantando Flask Server en puerto 5000
+Flask PID: 12346
+[3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)
+```
+
+Type `n` to continue:
+
+```
+✅ Servidores activos:
+   - ICE Server: http://localhost:10000
+   - Web App: http://localhost:5000
+Presiona Ctrl+C para detener
+```
+
+**Stopping:**
+
+Press `Ctrl+C` in the PowerShell window. Manually verify processes stopped:
+
+```powershell
+Get-Process python3 | Stop-Process
+```
+
+</Tab>
+
+</Tabs>
+
+### Option 2: Manual Startup
+
+Full control over each server with separate terminal windows.
+
+<Tabs>
+
+<Tab title="macOS/Linux">
+
+**Terminal 1 - ICE Server:**
+
+```bash
+cd backend
+python3 server.py
+```
+
+**Output:**
+```
+Servidor escuchando en puerto 10000... (Ctrl+C para detener)
+```
+
+Keep this terminal running.
+
+**Terminal 2 - Flask Server:**
+
+```bash
+cd backend
+python3 web_server.py
+```
+
+**Output:**
+```
+ Iniciando servidor Flask...
+✓ Conectado al servidor ICE en puerto 10000
+★ Servidor Flask escuchando en http://localhost:5000
+ Para exponerlo con ngrok ejecuta: ngrok http 5000
+```
+
+Keep this terminal running.
+
+**Terminal 3 - Access:**
+
+Open [http://localhost:5000](http://localhost:5000) in your browser.
+
+</Tab>
+
+<Tab title="Windows">
+
+**PowerShell Window 1 - ICE Server:**
+
+```powershell
+cd backend
+python server.py
+```
+
+**Output:**
+```
+Servidor escuchando en puerto 10000... (Ctrl+C para detener)
+```
+
+Keep this window open.
+
+**PowerShell Window 2 - Flask Server:**
+
+```powershell
+cd backend
+python web_server.py
+```
+
+**Output:**
+```
+ Iniciando servidor Flask...
+✓ Conectado al servidor ICE en puerto 10000
+★ Servidor Flask escuchando en http://localhost:5000
+ Para exponerlo con ngrok ejecuta: ngrok http 5000
+```
+
+Keep this window open.
+
+**Browser:**
+
+Navigate to [http://localhost:5000](http://localhost:5000).
+
+</Tab>
+
+</Tabs>
+
+<Note>
+**Why two servers?**
+
+- **ICE Server** (`server.py`): Handles RPC computation logic for unit conversions
+- **Flask Server** (`web_server.py`): Serves frontend and proxies API requests to ICE server
+
+This separation allows the compute layer (ICE) to be distributed across machines while Flask handles HTTP/REST.
+</Note>
+
+## Environment Configuration
+
+Customize Flask server behavior using environment variables defined in `backend/web_server.py:184-186`:
+
+```python
+host = os.getenv('HOST', 'localhost')
+port = int(os.getenv('PORT', '5000'))
+debug = os.getenv('DEBUG', 'true').lower() == 'true'
+```
+
+### Available Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST` | `localhost` | Bind address (`0.0.0.0` for external access) |
+| `PORT` | `5000` | Flask server port |
+| `DEBUG` | `true` | Enable Flask debug mode and auto-reload |
+
+### Setting Variables
+
+<Tabs>
+
+<Tab title="macOS/Linux">
+
+```bash
+HOST=0.0.0.0 PORT=8080 DEBUG=true python backend/web_server.py
+```
+
+**Make network-accessible:**
+
+```bash
+HOST=0.0.0.0 python backend/web_server.py
+```
+
+Now accessible at `http://<your-ip>:5000` from other devices on your network.
+
+</Tab>
+
+<Tab title="Windows (PowerShell)">
+
+```powershell
+$env:HOST="0.0.0.0"
+$env:PORT="8080"
+$env:DEBUG="true"
+python backend/web_server.py
+```
+
+**Persistent for session:**
+
+```powershell
+$env:HOST="0.0.0.0"
+python backend/web_server.py
+```
+
+</Tab>
+
+<Tab title="Windows (CMD)">
+
+```bat
+set HOST=0.0.0.0
+set PORT=8080
+set DEBUG=true
+python backend\web_server.py
+```
+
+</Tab>
+
+</Tabs>
+
+<Warning>
+Binding to `0.0.0.0` exposes your server to your entire network. Only use on trusted networks or behind a firewall.
+</Warning>
+
+## Exposing with ngrok (Optional)
+
+Share your local converter with anyone on the internet using ngrok tunneling.
+
+### Install ngrok
+
+<Tabs>
+
+<Tab title="macOS">
+
+```bash
+brew install ngrok
+```
+
+</Tab>
+
+<Tab title="Windows (winget)">
+
+```powershell
+winget install ngrok.ngrok
+```
+
+</Tab>
+
+<Tab title="Windows (Chocolatey)">
+
+```powershell
+choco install ngrok
+```
+
+</Tab>
+
+<Tab title="Manual">
+
+Download from [https://ngrok.com/download](https://ngrok.com/download) and add to PATH.
+
+</Tab>
+
+</Tabs>
+
+### Configure Auth Token (One-time)
+
+Sign up at [https://dashboard.ngrok.com/signup](https://dashboard.ngrok.com/signup) and get your token:
+
+```bash
+ngrok config add-authtoken YOUR_TOKEN_HERE
+```
+
+### Start Tunnel
+
+With Flask server running on port 5000:
+
+```bash
+ngrok http 5000
+```
+
+**Output:**
+
+```
+Session Status                online
+Account                       your-email@example.com
+Forwarding                    https://abc-123-def.ngrok-free.app -> http://localhost:5000
+```
+
+Share the `https://abc-123-def.ngrok-free.app` URL with anyone. They'll access your local server.
+
+<Tip>
+The automated run scripts (`run.sh`, `run.ps1`) prompt to start ngrok automatically. Answer `s` when asked.
+</Tip>
+
+## Testing the Installation
+
+### Web Interface Test
+
+1. Open [http://localhost:5000](http://localhost:5000)
+2. Click **Temp** tab
+3. Enter `100` in **Valor**
+4. Select **°C** → **°F**
+5. Result should show `212`
+
+### API Endpoint Test
+
+```bash
+curl -X POST http://localhost:5000/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "categoria": "longitud",
+    "valor": 1,
+    "desde": "mi",
+    "hasta": "km"
+  }'
+```
+
+**Expected response:**
+```json
+{
+  "resultado": 1.609344
+}
+```
+
+### Direct ICE Client Test
+
+```bash
+python backend/client.py
+```
+
+Should output conversion examples across all categories. See code implementation in `backend/client.py:30-76`:
+
+```python
+print("=== TEMPERATURA ===")
+r = conversor.convertirTemperatura(100, "celsius", "fahrenheit")
+print(f"100 celsius -> fahrenheit: {r:.4f}")
+
+r = conversor.convertirTemperatura(0, "celsius", "kelvin")
+print(f"0 celsius -> kelvin: {r:.4f}")
+```
+
+## Troubleshooting
+
+### Connection Refused to Port 10000
+
+**Symptoms**: Flask shows `✗ No se pudo conectar al servidor ICE`
+
+**Solution**:
+
+1. Verify ICE server is running:
+
+<CodeGroup>
+
+```bash macOS/Linux
+ps aux | grep server.py
+lsof -i :10000
+```
+
+```powershell Windows
+Get-Process | Where-Object {$_.ProcessName -like "*python*"}
+netstat -ano | findstr :10000
+```
+
+</CodeGroup>
+
+2. Restart ICE server:
+
+```bash
+cd backend
+python3 server.py
+```
+
+### Port Already in Use
+
+**Symptoms**: `Address already in use` or `OSError: [Errno 48]`
+
+**Solution**:
+
+<CodeGroup>
+
+```bash macOS/Linux - Find Process
+# Check port 10000
+lsof -i :10000
+
+# Check port 5000
+lsof -i :5000
+
+# Kill specific PID
+kill -9 <PID>
+```
+
+```powershell Windows - Find Process
+# Check ports
+netstat -ano | findstr :10000
+netstat -ano | findstr :5000
+
+# Kill by PID
+Stop-Process -Id <PID> -Force
+```
+
+</CodeGroup>
+
+Alternatively, change Flask port:
+
+```bash
+PORT=8080 python backend/web_server.py
+```
+
+### zeroc-ice Installation Failure
+
+**Symptoms**: 
+```
+error: could not build wheels for zeroc-ice
+```
+
+**Solutions**:
+
+1. **Verify Python version**:
+
+```bash
+python3 --version  # Should be 3.10 or 3.11
+```
+
+2. **Upgrade pip, setuptools, wheel**:
+
+```bash
+python -m pip install --upgrade pip setuptools wheel
+```
+
+3. **Use clean virtual environment**:
+
+```bash
+rm -rf .venv
+python3.10 -m venv .venv  # Explicitly use 3.10
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+4. **macOS: Install Xcode Command Line Tools**:
+
+```bash
+xcode-select --install
+```
+
+### Frontend Changes Not Appearing
+
+**Solution**: Hard refresh browser cache:
+
+- **Windows**: `Ctrl + F5` or `Ctrl + Shift + R`
+- **macOS**: `Cmd + Shift + R`
+- **Chrome DevTools**: Open DevTools → Right-click refresh → Empty Cache and Hard Reload
+
+### Flask Debug Mode Not Working
+
+**Solution**: Set DEBUG explicitly:
+
+```bash
+DEBUG=true python backend/web_server.py
+```
+
+Check Flask output confirms:
+```
+ * Debug mode: on
+ * Running on http://localhost:5000
+```
+
+## Regenerating ICE Stubs
+
+Only necessary if you modify the ICE interface definition in `backend/Conversor.ice`.
+
+<Steps>
+
+<Step title="Install slice2py compiler">
+
+Included with `zeroc-ice` Python package. Verify:
+
+```bash
+slice2py --version
+```
+
+</Step>
+
+<Step title="Edit the Slice file">
+
+Modify `backend/Conversor.ice`. Example - adding a new method:
+
+```ice
+module Conversor
+{
+    interface ConversorUnidades
+    {
+        double convertirTemperatura(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+        
+        // Add new method
+        double convertirArea(double valor, string desde, string hasta)
+            throws UnidadInvalidaException;
+    };
+};
+```
+
+</Step>
+
+<Step title="Regenerate Python stubs">
+
+```bash
+slice2py backend/Conversor.ice
+```
+
+This updates `Conversor/` directory with new Python modules.
+
+</Step>
+
+<Step title="Implement in server">
+
+Add corresponding method in `backend/server.py`:
+
+```python
+class ConversorUnidadesImpl(Conversor.ConversorUnidades):
+    
+    def convertirArea(self, valor, desde, hasta, current=None):
+        unidades = {"m2", "km2", "ft2", "acre"}
+        # ... implementation
+```
+
+</Step>
+
+<Step title="Restart servers">
+
+Stop and restart both ICE and Flask servers to load new code.
+
+</Step>
+
+</Steps>
+
+<Note>
+The ICE interface acts as a contract. Both client (`web_server.py:27-73`) and server (`server.py:14-129`) must implement matching signatures.
+</Note>
+
+## Development Workflow
+
+Recommended workflow for daily development:
+
+1. **Activate virtual environment**:
+
+   ```bash
+   source .venv/bin/activate  # macOS/Linux
+   .venv\Scripts\Activate.ps1  # Windows
+   ```
+
+2. **Terminal 1 - ICE Server**:
+
+   ```bash
+   cd backend && python3 server.py
+   ```
+
+3. **Terminal 2 - Flask Server (Debug Mode)**:
+
+   ```bash
+   cd backend && DEBUG=true python3 web_server.py
+   ```
+
+4. **Edit code**: Flask auto-reloads on file changes when DEBUG=true
+
+5. **Test in browser**: [http://localhost:5000](http://localhost:5000)
+
+6. **(Optional) Terminal 3 - ngrok**:
+
+   ```bash
+   ngrok http 5000
+   ```
+
+## Security Considerations
+
+<Warning>
+**This application is designed for development and demonstration purposes.** For production deployment:
+
+- Add authentication/authorization
+- Use HTTPS (SSL/TLS) for Flask
+- Implement rate limiting on API endpoints  
+- Validate and sanitize all inputs
+- Run behind reverse proxy (nginx, Apache)
+- Use production WSGI server (gunicorn, uWSGI) instead of Flask dev server
+- Consider Ice security features (IceSSL, access control)
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+Get running in 5 minutes with automated scripts
+</Card>
+
+<Card title="Architecture" icon="diagram-project" href="/architecture/overview">
+Understand the ZeroC Ice RPC communication flow
+</Card>
+
+<Card title="API Reference" icon="book" href="/api/overview">
+Explore all REST endpoints and ICE methods
+</Card>
+
+<Card title="Contributing" icon="code-pull-request" href="/development/regenerating-stubs">
+Add new conversion categories and features
+</Card>
+
+</CardGroup>

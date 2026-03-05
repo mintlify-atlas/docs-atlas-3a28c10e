@@ -1,0 +1,809 @@
+---
+title: 'Frontend Architecture'
+description: 'Vanilla JavaScript architecture, event handling, API integration, and theming system'
+---
+
+## Frontend Overview
+
+The frontend is a **single-page application** built with vanilla JavaScript (no frameworks), emphasizing simplicity and performance. It provides:
+
+<CardGroup cols={3}>
+  <Card title="Real-time Conversion" icon="bolt">
+    Instant conversion as user types with debouncing and validation
+  </Card>
+  <Card title="Theme System" icon="palette">
+    Light/dark/auto theming with system preference detection
+  </Card>
+  <Card title="Conversion History" icon="clock">
+    Recent conversions saved locally with one-click reload
+  </Card>
+</CardGroup>
+
+## Application Structure
+
+The frontend consists of three files:
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `index.html` | Structure and semantic HTML | 82 |
+| `style.css` | Theming, layout, animations | ~300 |
+| `app.js` | Application logic and API integration | 235 |
+
+<Note>
+  No build step required! The application runs directly in the browser with ES6+ features.
+</Note>
+
+## Data Model
+
+### Units Configuration
+
+From `app.js:1-15`:
+
+```javascript
+// Available units per category
+const units = {
+    temperatura: ["celsius", "fahrenheit", "kelvin"],
+    longitud: ["m", "km", "mi", "ft"],
+    peso: ["kg", "lb", "g"],
+    velocidad: ["kmh", "mph", "ms"],
+};
+
+// Human-readable labels for UI display
+const labels = {
+    temperatura: { celsius: "°C", fahrenheit: "°F", kelvin: "K" },
+    longitud: { m: "m", km: "km", mi: "mi", ft: "ft" },
+    peso: { kg: "kg", lb: "lb", g: "g" },
+    velocidad: { kmh: "km/h", mph: "mph", ms: "m/s" },
+};
+```
+
+**Design Decision**: Units are hardcoded in frontend for instant responsiveness. Alternative would be fetching from `/api/unidades` endpoint.
+
+### Application State
+
+```javascript
+// Current selected category
+let currentCat = "temperatura";
+
+// Conversion history (max 5 items)
+let history = [];
+
+// Theme configuration
+const THEME_KEY = "themeMode";
+const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+```
+
+<Note>
+  State is intentionally simple. No state management library needed for this scope.
+</Note>
+
+## API Integration
+
+### Conversion Function
+
+The core API call from `app.js:57-85`:
+
+```javascript
+async function convert(cat, valor, desde, hasta) {
+    // Short-circuit if no actual conversion needed
+    if (desde === hasta) return valor;
+    
+    try {
+        const response = await fetch('/api/convert', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                categoria: cat,
+                valor: valor,
+                desde: desde,
+                hasta: hasta
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error en la conversión');
+        }
+        
+        const data = await response.json();
+        return data.resultado;
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+}
+```
+
+<Steps>
+  <Step title="Optimization Check">
+    If source and target units are identical, return value immediately without API call.
+  </Step>
+  
+  <Step title="Fetch API Call">
+    Send POST request with JSON payload containing categoria, valor, desde, hasta.
+  </Step>
+  
+  <Step title="Response Handling">
+    Check HTTP status. If not OK, parse error message from JSON response.
+  </Step>
+  
+  <Step title="Extract Result">
+    Parse successful response and return the `resultado` field.
+  </Step>
+  
+  <Step title="Error Propagation">
+    Log error to console and re-throw to calling code.
+  </Step>
+</Steps>
+
+### Error Handling
+
+From `app.js:136-141`:
+
+```javascript
+try {
+    const res = await convert(currentCat, valor, desde, hasta);
+    // ... display result
+} catch (error) {
+    resEl.className = "screen-value error";
+    resEl.textContent = "Error";
+    unitEl.textContent = "(sin conexión)";
+    console.error(error);
+}
+```
+
+**User Experience**: Errors are displayed inline without alert boxes, maintaining flow.
+
+## Theme System
+
+### Theme Modes
+
+The application supports three theme modes:
+
+<Tabs>
+  <Tab title="Auto">
+    Follow system color scheme preference. Detects via `prefers-color-scheme` media query.
+    
+    ```javascript
+    const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const resolvedTheme = systemThemeQuery.matches ? "dark" : "light";
+    ```
+  </Tab>
+  
+  <Tab title="Dark">
+    Force dark theme regardless of system setting.
+    
+    ```javascript
+    document.documentElement.setAttribute("data-theme", "dark");
+    ```
+  </Tab>
+  
+  <Tab title="Light">
+    Force light theme regardless of system setting.
+    
+    ```javascript
+    document.documentElement.setAttribute("data-theme", "light");
+    ```
+  </Tab>
+</Tabs>
+
+### Theme Resolution
+
+From `app.js:22-30`:
+
+```javascript
+function resolveTheme(mode) {
+    if (mode === "auto") {
+        return systemThemeQuery.matches ? "dark" : "light";
+    }
+    return mode;
+}
+
+function applyTheme(mode) {
+    const resolvedTheme = resolveTheme(mode);
+    document.documentElement.setAttribute("data-theme", resolvedTheme);
+}
+```
+
+The `data-theme` attribute on `<html>` triggers CSS custom properties:
+
+```css
+:root[data-theme="light"] {
+    --bg-color: #ffffff;
+    --text-color: #1a1a1a;
+    /* ... */
+}
+
+:root[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --text-color: #ffffff;
+    /* ... */
+}
+```
+
+### Flash-of-Unstyled-Content Prevention
+
+Critical theme code runs **before page render** via inline script in `index.html:7-14`:
+
+```html
+<head>
+    <script>
+        (function () {
+            const saved = localStorage.getItem('themeMode') || 'auto';
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const resolved = saved === 'auto' ? (prefersDark ? 'dark' : 'light') : saved;
+            document.documentElement.setAttribute('data-theme', resolved);
+        })();
+    </script>
+    <link rel="stylesheet" href="./style.css">
+</head>
+```
+
+<Warning>
+  This inline script **must** execute before CSS loads to prevent theme flicker on page load.
+</Warning>
+
+### Theme Initialization
+
+From `app.js:32-50`:
+
+```javascript
+function initThemeMode() {
+    const themeSelect = document.getElementById("theme-mode");
+    if (!themeSelect) return;
+    
+    // Load saved preference
+    const savedMode = localStorage.getItem(THEME_KEY) || "auto";
+    themeSelect.value = savedMode;
+    applyTheme(savedMode);
+    
+    // Listen for user changes
+    themeSelect.addEventListener("change", () => {
+        const selectedMode = themeSelect.value;
+        localStorage.setItem(THEME_KEY, selectedMode);
+        applyTheme(selectedMode);
+    });
+    
+    // Listen for system theme changes (only affects auto mode)
+    systemThemeQuery.addEventListener("change", () => {
+        const currentMode = localStorage.getItem(THEME_KEY) || "auto";
+        if (currentMode === "auto") applyTheme("auto");
+    });
+}
+```
+
+<Steps>
+  <Step title="Load Saved Preference">
+    Read from localStorage or default to "auto".
+  </Step>
+  
+  <Step title="Sync UI Select">
+    Set the dropdown value to match saved preference.
+  </Step>
+  
+  <Step title="Apply Theme">
+    Immediately apply the resolved theme to avoid delay.
+  </Step>
+  
+  <Step title="Handle User Changes">
+    When user selects new theme, save to localStorage and apply.
+  </Step>
+  
+  <Step title="Track System Changes">
+    If user is in "auto" mode, react to OS theme switches automatically.
+  </Step>
+</Steps>
+
+## UI Components
+
+### Category Tabs
+
+From `app.js:187-202`:
+
+```javascript
+document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+        // Update active tab styling
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        
+        // Update current category
+        currentCat = tab.dataset.cat;
+        
+        // Repopulate unit dropdowns
+        populateSelects(currentCat);
+        
+        // Clear input field
+        document.getElementById("valor").value = '';
+        
+        // Reset result display
+        const resEl = document.getElementById("result");
+        resEl.className = "screen-value placeholder";
+        resEl.textContent = "—";
+        document.getElementById("result-unit").textContent = "";
+    });
+});
+```
+
+HTML structure from `index.html:38-43`:
+
+```html
+<div class="tabs">
+    <div class="tab active" data-cat="temperatura">
+        <i class="bi bi-thermometer-half"></i><span>Temp</span>
+    </div>
+    <div class="tab" data-cat="longitud">
+        <i class="bi bi-rulers"></i><span>Long</span>
+    </div>
+    <!-- ... -->
+</div>
+```
+
+**Data Attributes**: `data-cat` stores category ID for JavaScript access.
+
+### Dynamic Select Population
+
+From `app.js:90-104`:
+
+```javascript
+function populateSelects(cat) {
+    const desdeEl = document.getElementById("desde");
+    const hastaEl = document.getElementById("hasta");
+    const opts = units[cat];
+    
+    // Generate <option> elements dynamically
+    desdeEl.innerHTML = opts.map(u =>
+        `<option value="${u}">${labels[cat][u] || u}</option>`
+    ).join("");
+    
+    hastaEl.innerHTML = opts.map(u =>
+        `<option value="${u}">${labels[cat][u] || u}</option>`
+    ).join("");
+    
+    // Default to different units for "hasta" dropdown
+    if (opts.length > 1) hastaEl.value = opts[1];
+}
+```
+
+**Performance**: Using `innerHTML` with `map().join()` is faster than createElement for multiple elements.
+
+### Real-time Conversion
+
+From `app.js:109-142`:
+
+```javascript
+async function doConvert() {
+    const valor = parseFloat(document.getElementById("valor").value);
+    const desde = document.getElementById("desde").value;
+    const hasta = document.getElementById("hasta").value;
+    const resEl = document.getElementById("result");
+    const unitEl = document.getElementById("result-unit");
+    
+    // Validate input
+    if (isNaN(valor)) {
+        resEl.className = "screen-value error";
+        resEl.textContent = "Ingresa un valor";
+        unitEl.textContent = "";
+        return;
+    }
+    
+    // Show loading state
+    resEl.className = "screen-value loading";
+    resEl.textContent = "...";
+    
+    try {
+        // Call API
+        const res = await convert(currentCat, valor, desde, hasta);
+        
+        // Format result (max 6 decimals, strip trailing zeros)
+        const formatted = parseFloat(res.toFixed(6)).toString();
+        
+        // Animate result display
+        resEl.className = "screen-value result-animate";
+        resEl.textContent = formatted;
+        unitEl.textContent = labels[currentCat][hasta] || hasta;
+        
+        // Add to history
+        addHistory(valor, desde, formatted, hasta);
+    } catch (error) {
+        resEl.className = "screen-value error";
+        resEl.textContent = "Error";
+        unitEl.textContent = "(sin conexión)";
+        console.error(error);
+    }
+}
+```
+
+**State Transitions**:
+1. **Placeholder** (`—`) → Initial state
+2. **Loading** (`...`) → API call in progress
+3. **Result** (`212`) → Success with animation
+4. **Error** (`Error`) → API or validation failure
+
+### Event Listeners
+
+From `app.js:212-229`:
+
+```javascript
+// Real-time conversion on input
+document.getElementById("valor").addEventListener("input", () => {
+    if (document.getElementById("valor").value) doConvert();
+});
+
+// Conversion on unit change
+document.getElementById("desde").addEventListener("change", () => {
+    if (document.getElementById("valor").value) doConvert();
+});
+
+document.getElementById("hasta").addEventListener("change", () => {
+    if (document.getElementById("valor").value) doConvert();
+});
+
+// Manual convert button
+document.getElementById("convert-btn").addEventListener("click", doConvert);
+
+// Enter key to convert
+document.getElementById("valor").addEventListener("keydown", e => {
+    if (e.key === "Enter") doConvert();
+});
+```
+
+<Note>
+  Real-time conversion only triggers when `valor` has content, preventing unnecessary API calls.
+</Note>
+
+### Unit Swap Button
+
+From `app.js:205-210`:
+
+```javascript
+document.getElementById("swap-btn").addEventListener("click", () => {
+    const desdeEl = document.getElementById("desde");
+    const hastaEl = document.getElementById("hasta");
+    
+    // Swap values using destructuring
+    [desdeEl.value, hastaEl.value] = [hastaEl.value, desdeEl.value];
+    
+    // Re-convert if value exists
+    if (document.getElementById("valor").value) doConvert();
+});
+```
+
+**UX Enhancement**: Swapping units automatically triggers reconversion for instant feedback.
+
+## Conversion History
+
+### History Management
+
+From `app.js:147-167`:
+
+```javascript
+function addHistory(val, desde, res, hasta) {
+    // Add to beginning of array
+    history.unshift({ val, desde, res, hasta, cat: currentCat });
+    
+    // Keep only 5 most recent
+    if (history.length > 5) history.pop();
+    
+    // Re-render
+    renderHistory();
+}
+
+function renderHistory() {
+    const list = document.getElementById("history-list");
+    
+    // Empty state
+    if (!history.length) {
+        list.innerHTML = `<div class="empty-history">Sin conversiones aun</div>`;
+        return;
+    }
+    
+    // Render history items
+    list.innerHTML = history.map((h, i) => {
+        const lab = labels[h.cat];
+        return `<div class="history-item" onclick="loadHistory(${i})">
+            <span>${h.val} ${lab[h.desde] || h.desde}</span>
+            <span class="history-result">${h.res} ${lab[h.hasta] || h.hasta}</span>
+        </div>`;
+    }).join("");
+}
+```
+
+**Design Decisions**:
+- In-memory storage only (lost on page refresh)
+- FIFO queue with max 5 items
+- Click any item to restore that conversion
+
+<Note>
+  Could be enhanced to use `localStorage` for persistence across sessions:
+  ```javascript
+  localStorage.setItem('conversionHistory', JSON.stringify(history));
+  ```
+</Note>
+
+### History Item Restoration
+
+From `app.js:169-180`:
+
+```javascript
+function loadHistory(i) {
+    const h = history[i];
+    
+    // Switch to correct category tab
+    document.querySelectorAll(".tab").forEach(t =>
+        t.classList.toggle("active", t.dataset.cat === h.cat)
+    );
+    currentCat = h.cat;
+    populateSelects(h.cat);
+    
+    // Restore form values
+    document.getElementById("valor").value = h.val;
+    document.getElementById("desde").value = h.desde;
+    document.getElementById("hasta").value = h.hasta;
+    
+    // Re-run conversion
+    doConvert();
+}
+```
+
+**User Experience**: One-click restoration of any previous conversion, including category switch.
+
+## Application Initialization
+
+From `app.js:234-235`:
+
+```javascript
+// Initialize on page load
+initThemeMode();
+populateSelects(currentCat);
+```
+
+<Steps>
+  <Step title="Theme Initialization">
+    Set up theme system, load preferences, attach listeners.
+  </Step>
+  
+  <Step title="Populate UI">
+    Fill unit dropdowns with default category (temperatura).
+  </Step>
+  
+  <Step title="Ready for Interaction">
+    Application is now fully interactive, waiting for user input.
+  </Step>
+</Steps>
+
+## HTML Structure
+
+### Semantic Layout
+
+From `index.html:21-79`:
+
+```html
+<body>
+    <div class="device">  <!-- Calculator-style container -->
+        
+        <div class="header">
+            <span class="brand">Unit Converter</span>
+            <div class="header-actions">
+                <div class="theme-control">
+                    <i class="bi bi-circle-half"></i>
+                    <select id="theme-mode">
+                        <option value="auto">Auto</option>
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                    </select>
+                </div>
+                <div class="status-dot"></div>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <!-- Category tabs -->
+        </div>
+        
+        <div class="screen">
+            <!-- Result display -->
+        </div>
+        
+        <div class="input-row">
+            <!-- Input fields -->
+        </div>
+        
+        <button class="convert-btn">
+            <!-- Convert button -->
+        </button>
+        
+        <div class="history">
+            <!-- Conversion history -->
+        </div>
+        
+    </div>
+    <script src="app.js"></script>
+</body>
+```
+
+**Design Philosophy**: Clean semantic structure without unnecessary nesting. Each section has clear purpose.
+
+### Accessibility Features
+
+```html
+<!-- ARIA labels for screen readers -->
+<select id="theme-mode" aria-label="Modo de tema">
+    <option value="auto">Auto</option>
+    <!-- ... -->
+</select>
+
+<button class="swap-btn" id="swap-btn" aria-label="Intercambiar unidades">
+    <i class="bi bi-arrow-left-right"></i>
+</button>
+
+<!-- Input types for mobile keyboards -->
+<input type="number" id="valor" placeholder="0.00" step="any">
+```
+
+## Performance Optimizations
+
+### Debouncing
+
+<Warning>
+  **Current Implementation**: No debouncing on input events. Every keystroke triggers conversion.
+  
+  **Optimization**:
+  ```javascript
+  let debounceTimer;
+  document.getElementById("valor").addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+          if (document.getElementById("valor").value) doConvert();
+      }, 300);  // Wait 300ms after last keystroke
+  });
+  ```
+  
+  This reduces API calls during rapid typing.
+</Warning>
+
+### Short-circuit Evaluation
+
+```javascript
+// Skip API call if no conversion needed
+if (desde === hasta) return valor;
+
+// Only convert if value exists
+if (document.getElementById("valor").value) doConvert();
+```
+
+### Lazy Rendering
+
+```javascript
+// Only re-render history when it changes
+function addHistory(...) {
+    history.unshift(...);
+    renderHistory();  // Batch update
+}
+```
+
+## Browser Compatibility
+
+### Required Features
+
+| Feature | Requirement | Fallback |
+|---------|-------------|----------|
+| Fetch API | Modern browsers | Polyfill for IE11 |
+| ES6 syntax | ES6+ support | Transpile with Babel |
+| CSS Custom Properties | CSS3 support | Static stylesheet |
+| Media Queries | CSS3 support | Default theme |
+
+### Tested Browsers
+
+<CardGroup cols={2}>
+  <Card title="Desktop" icon="desktop">
+    - Chrome 90+
+    - Firefox 88+
+    - Safari 14+
+    - Edge 90+
+  </Card>
+  
+  <Card title="Mobile" icon="mobile">
+    - iOS Safari 14+
+    - Chrome Android 90+
+    - Samsung Internet 14+
+  </Card>
+</CardGroup>
+
+## Styling Architecture
+
+### CSS Custom Properties
+
+Theme colors defined as CSS variables:
+
+```css
+:root[data-theme="light"] {
+    --bg-color: #ffffff;
+    --text-color: #1a1a1a;
+    --accent-color: #3b82f6;
+    --border-color: #e5e7eb;
+}
+
+:root[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --text-color: #ffffff;
+    --accent-color: #60a5fa;
+    --border-color: #374151;
+}
+```
+
+Used throughout:
+
+```css
+.device {
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+```
+
+### Responsive Design
+
+```css
+@media (max-width: 480px) {
+    .device {
+        max-width: 100%;
+        border-radius: 0;
+    }
+    
+    .tab span {
+        display: none;  /* Hide text, show only icons */
+    }
+}
+```
+
+### Animations
+
+```css
+.result-animate {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+```
+
+## Future Enhancements
+
+<CardGroup cols={2}>
+  <Card title="Offline Support" icon="wifi">
+    Service Worker for offline functionality and caching
+  </Card>
+  
+  <Card title="PWA Features" icon="mobile">
+    Add manifest.json for installable app
+  </Card>
+  
+  <Card title="History Persistence" icon="database">
+    Save history to localStorage
+  </Card>
+  
+  <Card title="Keyboard Shortcuts" icon="keyboard">
+    Add hotkeys for power users
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="sitemap" href="/architecture/overview">
+    Understand the complete system design
+  </Card>
+  <Card title="Getting Started" icon="rocket" href="/quickstart">
+    Set up the development environment
+  </Card>
+</CardGroup>

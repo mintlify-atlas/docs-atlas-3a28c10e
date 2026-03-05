@@ -1,0 +1,302 @@
+---
+title: 'POST /api/convert'
+description: 'Convert values between different units'
+---
+
+## Endpoint
+
+```
+POST /api/convert
+```
+
+Converts a numeric value from one unit to another within a specific category. The conversion is performed by the ICE server, with the Flask API acting as a proxy.
+
+## Request
+
+### Headers
+
+<ParamField header="Content-Type" type="string" required>
+  Must be set to `application/json`
+</ParamField>
+
+### Body Parameters
+
+<ParamField body="categoria" type="string" required>
+  The category of units to convert. Must be one of:
+  - `temperatura` - Temperature conversions
+  - `longitud` - Length/distance conversions
+  - `peso` - Weight/mass conversions
+  - `velocidad` - Speed/velocity conversions
+  
+  **Note**: Case-insensitive (converted to lowercase internally)
+</ParamField>
+
+<ParamField body="valor" type="number" required>
+  The numeric value to convert. Can be an integer or floating-point number.
+  
+  **Example**: `100`, `32.5`, `-40`
+</ParamField>
+
+<ParamField body="desde" type="string" required>
+  The source unit to convert from. Available units depend on the category:
+  
+  **temperatura**: `celsius`, `fahrenheit`, `kelvin`
+  
+  **longitud**: `m`, `km`, `mi`, `ft`
+  
+  **peso**: `kg`, `lb`, `g`
+  
+  **velocidad**: `kmh`, `mph`, `ms`
+  
+  **Note**: Case-insensitive (converted to lowercase internally)
+</ParamField>
+
+<ParamField body="hasta" type="string" required>
+  The target unit to convert to. Must be a valid unit for the specified category (see `desde` for available units).
+  
+  **Note**: Case-insensitive (converted to lowercase internally)
+</ParamField>
+
+### Request Example
+
+<CodeGroup>
+```json Request Body
+{
+  "categoria": "temperatura",
+  "valor": 100,
+  "desde": "celsius",
+  "hasta": "fahrenheit"
+}
+```
+
+```javascript JavaScript (Fetch)
+const response = await fetch('/api/convert', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    categoria: 'temperatura',
+    valor: 100,
+    desde: 'celsius',
+    hasta: 'fahrenheit'
+  })
+});
+
+const data = await response.json();
+console.log(data.resultado); // 212.0
+```
+
+```python Python (Requests)
+import requests
+
+response = requests.post('http://localhost:5000/api/convert', json={
+    'categoria': 'temperatura',
+    'valor': 100,
+    'desde': 'celsius',
+    'hasta': 'fahrenheit'
+})
+
+data = response.json()
+print(data['resultado'])  # 212.0
+```
+
+```bash cURL
+curl -X POST http://localhost:5000/api/convert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "categoria": "temperatura",
+    "valor": 100,
+    "desde": "celsius",
+    "hasta": "fahrenheit"
+  }'
+```
+</CodeGroup>
+
+## Response
+
+### Success Response (200 OK)
+
+<ResponseField name="resultado" type="number">
+  The converted value as a floating-point number.
+</ResponseField>
+
+#### Example
+
+```json
+{
+  "resultado": 212.0
+}
+```
+
+### Error Responses
+
+<Accordion title="400 Bad Request - Invalid Category">
+  Returned when an unsupported category is provided.
+  
+  ```json
+  {
+    "error": "Categoría no reconocida: volumen"
+  }
+  ```
+</Accordion>
+
+<Accordion title="400 Bad Request - Invalid Unit">
+  Returned when an invalid unit is specified for the category. The error is thrown by the ICE server.
+  
+  ```json
+  {
+    "error": "Unidad inválida: yards is not supported"
+  }
+  ```
+</Accordion>
+
+<Accordion title="400 Bad Request - Invalid Value">
+  Returned when the valor parameter cannot be converted to a number.
+  
+  ```json
+  {
+    "error": "Valor inválido: could not convert string to float: 'abc'"
+  }
+  ```
+</Accordion>
+
+<Accordion title="503 Service Unavailable - Server Disconnected">
+  Returned when the Flask server is not connected to the ICE server.
+  
+  ```json
+  {
+    "error": "Servidor ICE desconectado"
+  }
+  ```
+  
+  **Solution**: Ensure the ICE server is running with `python3 server.py`
+</Accordion>
+
+<Accordion title="500 Internal Server Error">
+  Returned when an unexpected error occurs during conversion.
+  
+  ```json
+  {
+    "error": "Error en servidor: [error details]"
+  }
+  ```
+</Accordion>
+
+## Conversion Examples
+
+<CodeGroup>
+```json Temperature: Celsius to Fahrenheit
+// Request
+{
+  "categoria": "temperatura",
+  "valor": 0,
+  "desde": "celsius",
+  "hasta": "fahrenheit"
+}
+
+// Response
+{
+  "resultado": 32.0
+}
+```
+
+```json Length: Kilometers to Miles
+// Request
+{
+  "categoria": "longitud",
+  "valor": 10,
+  "desde": "km",
+  "hasta": "mi"
+}
+
+// Response
+{
+  "resultado": 6.21371
+}
+```
+
+```json Weight: Pounds to Kilograms
+// Request
+{
+  "categoria": "peso",
+  "valor": 150,
+  "desde": "lb",
+  "hasta": "kg"
+}
+
+// Response
+{
+  "resultado": 68.0389
+}
+```
+
+```json Speed: mph to km/h
+// Request
+{
+  "categoria": "velocidad",
+  "valor": 60,
+  "desde": "mph",
+  "hasta": "kmh"
+}
+
+// Response
+{
+  "resultado": 96.5606
+}
+```
+</CodeGroup>
+
+## Implementation Details
+
+<Note>
+  The conversion logic is implemented in the ICE server backend (web_server.py:118-125). The Flask API routes the request to the appropriate ICE method:
+  
+  - `temperatura` → `convertirTemperatura()`
+  - `longitud` → `convertirLongitud()`
+  - `peso` → `convertirPeso()`
+  - `velocidad` → `convertirVelocidad()`
+</Note>
+
+## Edge Cases
+
+### Same Unit Conversion
+
+While the frontend typically prevents same-unit conversions (e.g., celsius to celsius), the API will process these requests. The result will be the same as the input value.
+
+### Negative Values
+
+The API supports negative values, which is important for temperature conversions:
+
+```json
+{
+  "categoria": "temperatura",
+  "valor": -40,
+  "desde": "celsius",
+  "hasta": "fahrenheit"
+}
+// Result: -40.0 (the point where both scales are equal)
+```
+
+### Floating-Point Precision
+
+The API returns raw floating-point results. The frontend typically formats these to 6 decimal places (app.js:129):
+
+```javascript
+const formatted = parseFloat(res.toFixed(6)).toString();
+```
+
+<Warning>
+  Be aware of floating-point precision limitations when working with very large or very small numbers.
+</Warning>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Get Available Units" icon="list" href="/api/get-units">
+    Retrieve valid units for a category
+  </Card>
+  <Card title="Check Connection Status" icon="signal" href="/api/status">
+    Verify ICE server connectivity
+  </Card>
+</CardGroup>

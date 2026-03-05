@@ -1,0 +1,416 @@
+---
+title: ngrok Tunnel
+description: Expose your local Conversor de Unidades server to the internet using ngrok
+---
+
+ngrok creates a secure tunnel from a public URL to your local Flask server, allowing remote access to your application without complex network configuration.
+
+## What is ngrok?
+
+ngrok is a reverse proxy that creates a secure tunnel to your localhost. It's useful for:
+
+- Sharing your local development environment with others
+- Testing webhooks that require a public URL
+- Demonstrating your application without deploying
+- Accessing your local server from mobile devices
+
+<Note>
+The free tier of ngrok provides random URLs that change each time you restart the tunnel. For persistent URLs, consider upgrading to a paid plan.
+</Note>
+
+## Installation
+
+<Tabs>
+  <Tab title="macOS">
+    Using Homebrew:
+
+    ```bash
+    brew install ngrok
+    ```
+
+    Verify installation:
+    ```bash
+    ngrok --version
+    ```
+  </Tab>
+
+  <Tab title="Windows (winget)">
+    Using Windows Package Manager:
+
+    ```powershell
+    winget install ngrok.ngrok
+    ```
+
+    Verify installation:
+    ```powershell
+    ngrok --version
+    ```
+  </Tab>
+
+  <Tab title="Windows (Chocolatey)">
+    Using Chocolatey:
+
+    ```powershell
+    choco install ngrok
+    ```
+
+    Verify installation:
+    ```powershell
+    ngrok --version
+    ```
+  </Tab>
+
+  <Tab title="Linux">
+    Download and install:
+
+    ```bash
+    # Download
+    curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | \
+      sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && \
+      echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | \
+      sudo tee /etc/apt/sources.list.d/ngrok.list
+
+    # Install
+    sudo apt update && sudo apt install ngrok
+    ```
+
+    Verify installation:
+    ```bash
+    ngrok --version
+    ```
+  </Tab>
+</Tabs>
+
+## Authentication Setup
+
+<Steps>
+  <Step title="Create an ngrok account">
+    Sign up for a free account at [ngrok.com](https://ngrok.com/)
+  </Step>
+
+  <Step title="Get your authtoken">
+    After signing in, navigate to the [dashboard](https://dashboard.ngrok.com/get-started/your-authtoken) to find your authtoken.
+  </Step>
+
+  <Step title="Configure ngrok with your token">
+    Run this command once (replace `YOUR_TOKEN` with your actual token):
+
+    ```bash
+    ngrok config add-authtoken YOUR_TOKEN
+    ```
+
+    Expected output:
+    ```bash
+    Authtoken saved to configuration file: /Users/your-name/.ngrok2/ngrok.yml
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+You only need to configure the authtoken once. It will be saved to your ngrok configuration file.
+</Tip>
+
+## Using ngrok with the Application
+
+### Integrated with Automated Scripts
+
+The run scripts (`run.sh` and `run.ps1`) include built-in ngrok support:
+
+<Tabs>
+  <Tab title="macOS/Linux">
+    ```bash
+    ./run.sh
+    ```
+
+    When prompted:
+    ```bash
+    [3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)
+    ```
+
+    Type `s` and press Enter:
+
+    ```bash
+    Levantando ngrok en puerto 5000...
+    ```
+  </Tab>
+
+  <Tab title="Windows (PowerShell)">
+    ```powershell
+    powershell -ExecutionPolicy Bypass -File run.ps1
+    ```
+
+    When prompted:
+    ```powershell
+    [3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)
+    ```
+
+    Type `s` and press Enter:
+
+    ```powershell
+    Levantando ngrok en puerto 5000...
+    ```
+  </Tab>
+</Tabs>
+
+### Manual Setup
+
+If you're running the servers manually or want more control:
+
+<Steps>
+  <Step title="Start the ICE and Flask servers">
+    Ensure both servers are running first:
+
+    ```bash
+    # Terminal 1: ICE Server
+    cd backend
+    python3 server.py
+
+    # Terminal 2: Flask Server
+    cd backend
+    python3 web_server.py
+    ```
+
+    The Flask server will display:
+    ```bash
+    ✓ Servidor Flask escuchando en http://localhost:5000
+      Para exponerlo con ngrok ejecuta: ngrok http 5000
+    ```
+  </Step>
+
+  <Step title="Start ngrok in a third terminal">
+    ```bash
+    ngrok http 5000
+    ```
+
+    <Note>
+    If you're using a custom port via [environment variables](/deployment/environment-variables), replace `5000` with your configured port.
+    </Note>
+  </Step>
+
+  <Step title="Copy the public URL">
+    ngrok will display a status screen:
+
+    ```bash
+    ngrok                                                           
+
+    Session Status                online
+    Account                       your-email@example.com
+    Version                       3.x.x
+    Region                        United States (us)
+    Latency                       50ms
+    Web Interface                 http://127.0.0.1:4040
+    Forwarding                    https://abc-123-def.ngrok-free.app -> http://localhost:5000
+
+    Connections                   ttl     opn     rt1     rt5     p50     p90
+                                  0       0       0.00    0.00    0.00    0.00
+    ```
+
+    Your public URL is shown in the **Forwarding** line: `https://abc-123-def.ngrok-free.app`
+  </Step>
+</Steps>
+
+## Accessing Your Application
+
+Once ngrok is running, you can access your application via the public URL:
+
+```
+https://abc-123-def.ngrok-free.app
+```
+
+Share this URL with anyone who needs access to your local server.
+
+<Warning>
+ngrok free tier displays an interstitial page before redirecting to your application. Users need to click "Visit Site" to proceed.
+</Warning>
+
+## ngrok Web Interface
+
+ngrok provides a local web interface for inspecting traffic:
+
+```
+http://localhost:4040
+```
+
+Features:
+- View all HTTP requests and responses
+- Replay requests for testing
+- Inspect request/response headers and bodies
+- Monitor tunnel status
+
+<Tip>
+The web interface is extremely useful for debugging webhook integrations and API calls.
+</Tip>
+
+## Advanced Configuration
+
+### Custom Subdomain
+
+With a paid ngrok plan, you can use custom subdomains:
+
+```bash
+ngrok http 5000 --subdomain=my-converter
+```
+
+This creates a persistent URL: `https://my-converter.ngrok-free.app`
+
+### Custom Domain
+
+With a paid plan, you can use your own domain:
+
+```bash
+ngrok http 5000 --domain=converter.yourdomain.com
+```
+
+### Basic Authentication
+
+Add password protection to your tunnel:
+
+```bash
+ngrok http 5000 --basic-auth="username:password"
+```
+
+Visitors will need to enter the username and password to access your application.
+
+### Configuration File
+
+For complex setups, create an ngrok configuration file at `~/.ngrok2/ngrok.yml`:
+
+```yaml ngrok.yml
+version: "2"
+authtoken: YOUR_TOKEN
+tunnels:
+  converter:
+    proto: http
+    addr: 5000
+    inspect: true
+    bind_tls: true
+```
+
+Start the tunnel:
+```bash
+ngrok start converter
+```
+
+## Automated Script Implementation
+
+The run scripts include ngrok integration:
+
+<CodeGroup>
+```bash run.sh:47-60
+# Terminal 3: ngrok (opcional)
+echo ""
+echo -e "${GREEN}[3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)${NC}"
+read -r response
+if [[ "$response" =~ ^[Ss]$ ]]; then
+    echo -e "${BLUE}Levantando ngrok en puerto 5000...${NC}"
+    ngrok http 5000
+else
+    echo -e "${BLUE}✅ Servidores activos:${NC}"
+    echo -e "   - ICE Server: http://localhost:10000"
+    echo -e "   - Web App: http://localhost:5000"
+    echo -e "${YELLOW}Presiona Ctrl+C para detener${NC}"
+    wait
+fi
+```
+
+```powershell run.ps1:26-43
+# Terminal 3: ngrok (opcional)
+Write-Host ""
+Write-Host "[3/3] ¿Quieres levantar ngrok para acceso remoto? (s/n)" -ForegroundColor $GREEN
+$response = Read-Host
+
+if ($response -eq "s" -or $response -eq "S") {
+    Write-Host "Levantando ngrok en puerto 5000..." -ForegroundColor $BLUE
+    & ngrok http 5000
+} else {
+    Write-Host "✅ Servidores activos:" -ForegroundColor $BLUE
+    Write-Host "   - ICE Server: http://localhost:10000" -ForegroundColor $BLUE
+    Write-Host "   - Web App: http://localhost:5000" -ForegroundColor $BLUE
+    Write-Host "Presiona Ctrl+C para detener" -ForegroundColor $YELLOW
+    
+    # Esperar a que se cierren los procesos
+    $iceProcess.WaitForExit()
+    $flaskProcess.WaitForExit()
+}
+```
+</CodeGroup>
+
+## Security Considerations
+
+<Warning>
+When using ngrok, your local server is exposed to the internet. Follow these security best practices:
+
+- Only run ngrok when you need remote access
+- Don't expose sensitive data or credentials
+- Use basic authentication for production-like testing
+- Monitor the ngrok web interface (port 4040) for suspicious traffic
+- Stop the tunnel when you're done using it
+</Warning>
+
+## Troubleshooting
+
+### ngrok: command not found
+
+ngrok is not installed or not in your PATH. Follow the [installation steps](#installation) above.
+
+### Authentication Failed
+
+If you see an authentication error:
+
+```bash
+ERR_NGROK_108: The authtoken you specified does not look like a proper ngrok tunnel authtoken.
+```
+
+Reconfigure your authtoken:
+```bash
+ngrok config add-authtoken YOUR_TOKEN
+```
+
+### Tunnel Connection Failed
+
+Ensure the Flask server is running before starting ngrok:
+
+```bash
+# Check if Flask is running on port 5000
+curl http://localhost:5000/api/status
+```
+
+### Free Tier Limitations
+
+The free tier has limitations:
+- 1 online ngrok process
+- 40 connections per minute
+- Random URLs that change on restart
+
+For higher limits, consider upgrading to a paid plan.
+
+## Stopping ngrok
+
+Press `Ctrl+C` in the terminal running ngrok to stop the tunnel:
+
+```bash
+Stopping tunnel...
+Tunnel stopped successfully
+```
+
+The public URL will immediately become unavailable.
+
+## Alternative Solutions
+
+If ngrok doesn't meet your needs, consider these alternatives:
+
+- **[localtunnel](https://localtunnel.github.io/)** - Open-source alternative
+- **[Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/)** - Free, no bandwidth limits
+- **[Tailscale](https://tailscale.com/)** - Private network tunnel
+- **Port forwarding** - Router configuration for persistent access
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Local Setup" icon="laptop" href="/deployment/local-setup">
+    Learn how to run the application locally
+  </Card>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Configure host, port, and debug settings
+  </Card>
+</CardGroup>
