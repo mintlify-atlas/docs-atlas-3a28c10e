@@ -1,0 +1,107 @@
+{
+  "projectType": "saas",
+  "projectName": "Conversor de Unidades Remoto",
+  "projectDescription": "A distributed unit converter web application with ZeroC Ice RPC backend and interactive web frontend supporting temperature, length, weight, and velocity conversions",
+  "theme": "palm",
+  "primaryColor": "#3B82F6",
+  "lightColor": "#60A5FA",
+  "darkColor": "#2563EB",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guides/using-the-app",
+              "guides/supported-conversions",
+              "guides/themes-and-settings"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/local-setup",
+              "deployment/environment-variables",
+              "deployment/ngrok-tunnel"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "REST API",
+            "pages": [
+              "api/overview",
+              "api/convert",
+              "api/get-units",
+              "api/status"
+            ]
+          },
+          {
+            "group": "ICE Interface",
+            "pages": [
+              "ice/interface-definition",
+              "ice/client-usage",
+              "ice/server-implementation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/ice-middleware",
+              "architecture/flask-server",
+              "architecture/frontend"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "development/regenerating-stubs",
+              "development/troubleshooting",
+              "development/cross-platform"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Temperature conversions (Celsius, Fahrenheit, Kelvin)",
+    "Length conversions (meters, kilometers, miles, feet)",
+    "Weight conversions (kilograms, pounds, grams)",
+    "Velocity conversions (km/h, mph, m/s)",
+    "Real-time conversion as you type",
+    "Conversion history tracking",
+    "Dark/Light/Auto theme modes",
+    "Remote access via ngrok tunneling",
+    "Cross-platform support (Windows, macOS, Linux)"
+  ],
+  "publicApiSurface": [
+    "POST /api/convert - Convert units with categoria, valor, desde, hasta",
+    "GET /api/unidades/<categoria> - Get available units for a category",
+    "GET /api/status - Check ICE server connection status",
+    "convertirTemperatura(valor, desde, hasta) - ICE method for temperature conversion",
+    "convertirLongitud(valor, desde, hasta) - ICE method for length conversion",
+    "convertirPeso(valor, desde, hasta) - ICE method for weight conversion",
+    "convertirVelocidad(valor, desde, hasta) - ICE method for velocity conversion",
+    "unidadesDisponibles(categoria) - ICE method to list available units"
+  ]
+}
