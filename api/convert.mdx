@@ -250,12 +250,12 @@ curl -X POST http://localhost:5000/api/convert \
 ## Implementation Details
 
 <Note>
-  The conversion logic is implemented in the ICE server backend (web_server.py:118-125). The Flask API routes the request to the appropriate ICE method:
+  The conversion logic is implemented in the ICE server backend (web_server.py:118-125). The Flask API routes the request through the client wrapper to the appropriate ICE method:
   
-  - `temperatura` → `convertirTemperatura()`
-  - `longitud` → `convertirLongitud()`
-  - `peso` → `convertirPeso()`
-  - `velocidad` → `convertirVelocidad()`
+  - `temperatura` → `cliente.convert_temperatura()` → ICE `convertirTemperatura()`
+  - `longitud` → `cliente.convert_longitud()` → ICE `convertirLongitud()`
+  - `peso` → `cliente.convert_peso()` → ICE `convertirPeso()`
+  - `velocidad` → `cliente.convert_velocidad()` → ICE `convertirVelocidad()`
 </Note>
 
 ## Edge Cases
